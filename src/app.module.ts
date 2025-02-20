@@ -8,6 +8,8 @@ import appConfig from './config/app.config';
 import swaggerConfig from './config/swagger.config';
 import { AppLoggerService } from './common/logger/logger.service';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
       isGlobal: true,
       load: [appConfig, swaggerConfig],
     }),
+    AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [
