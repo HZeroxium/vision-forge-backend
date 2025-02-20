@@ -6,16 +6,26 @@ import { LoggingMiddleware } from './common/middleware/logging.middleware';
 import { ConfigModule } from '@nestjs/config';
 import appConfig from './config/app.config';
 import swaggerConfig from './config/swagger.config';
+import { AppLoggerService } from './common/logger/logger.service';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, // ✅ Đảm bảo ConfigModule hoạt động toàn cục
-      load: [appConfig, swaggerConfig], // ✅ Nạp cấu hình từ app.config.ts
+      isGlobal: true,
+      load: [appConfig, swaggerConfig],
     }),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    AppLoggerService,
+    {
+      provide: 'APP_INTERCEPTOR', //
+      useClass: LoggingInterceptor,
+    },
+  ],
+  exports: [AppLoggerService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
