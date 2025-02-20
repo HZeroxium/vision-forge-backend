@@ -21,7 +21,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
     AppService,
     AppLoggerService,
     {
-      provide: 'APP_INTERCEPTOR', //
+      provide: 'APP_INTERCEPTOR',
       useClass: LoggingInterceptor,
     },
   ],

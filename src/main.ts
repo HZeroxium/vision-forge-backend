@@ -43,7 +43,7 @@ async function bootstrap() {
 
   // Start server
   const PORT = configService.get<number>('port')!;
-  console.log(`Server running on port ${PORT}`);
+  loggerService.log(`Server running on port ${PORT}`);
 
   await app.listen(PORT);
 }

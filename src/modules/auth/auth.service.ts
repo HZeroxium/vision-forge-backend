@@ -1,10 +1,18 @@
 // modules/auth/auth.service.ts
 
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { RegisterDto } from './dto/register.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +20,35 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
   ) {}
+
+  async register(registerDto: RegisterDto) {
+    const existing = await this.usersService.findByEmail(registerDto.email);
+    if (existing) throw new ConflictException('Email already registered');
+    return this.usersService.create(registerDto);
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    return this.usersService.setResetToken(forgotPasswordDto.email);
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    return this.usersService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.newPassword,
+    );
+  }
+
+  async changePassword(userId: number, changePasswordDto: ChangePasswordDto) {
+    return this.usersService.changePassword(
+      userId,
+      changePasswordDto.oldPassword,
+      changePasswordDto.newPassword,
+    );
+  }
+
+  async getProfile(user: any) {
+    return this.usersService.findById(user.userId);
+  }
 
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findByEmail(email);

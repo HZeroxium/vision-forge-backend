@@ -10,16 +10,19 @@ export class AppLoggerService implements LoggerService {
   constructor() {
     this.logger = winston.createLogger({
       level: 'info',
-      transports: [
-        new winston.transports.Console({
-          format: winston.format.combine(
-            winston.format.timestamp(),
-            winston.format.printf(
-              ({ timestamp, level, message }) =>
-                `${timestamp} [${level.toUpperCase()}]: ${message}`,
-            ),
-          ),
+      format: winston.format.combine(
+        winston.format.timestamp({
+          format: 'YYYY-MM-DD hh:mm:ss.SSS A',
         }),
+        winston.format.printf(({ timestamp, level, message }) => {
+          return `${timestamp} [${level.toUpperCase()}]: ${message}`;
+        }),
+        winston.format.colorize({ all: true }),
+        // winston.format.cli(),
+      ),
+      transports: [
+        new winston.transports.Console(),
+        // new winston.transports.File({ filename: 'combined.log' }),
       ],
     });
   }
