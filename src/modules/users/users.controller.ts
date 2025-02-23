@@ -9,11 +9,14 @@ import {
   Put,
   Delete,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { UsersPaginationDto } from './dto/user-pagination.dto';
+import { UserResponseDto } from './dto/user-reponse.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -21,12 +24,16 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  findAll(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('order') order: 'asc' | 'desc' = 'asc',
+  ): Promise<UsersPaginationDto> {
+    return this.usersService.findAll(page, limit, order);
   }
 
   @Get(':id')
-  findById(@Param('id', ParseIntPipe) id: number) {
+  findById(@Param('id', ParseIntPipe) id: number): Promise<UserResponseDto> {
     return this.usersService.findById(id);
   }
 

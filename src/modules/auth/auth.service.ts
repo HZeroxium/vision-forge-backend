@@ -28,10 +28,19 @@ export class AuthService {
   }
 
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    if (!forgotPasswordDto) throw new UnauthorizedException('Missing email');
     return this.usersService.setResetToken(forgotPasswordDto.email);
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    if (!resetPasswordDto) throw new UnauthorizedException('Missing data');
+
+    if (!resetPasswordDto.token)
+      throw new UnauthorizedException('Missing token');
+
+    if (!resetPasswordDto.newPassword)
+      throw new UnauthorizedException('Missing new password');
+
     return this.usersService.resetPassword(
       resetPasswordDto.token,
       resetPasswordDto.newPassword,
@@ -39,6 +48,9 @@ export class AuthService {
   }
 
   async changePassword(userId: number, changePasswordDto: ChangePasswordDto) {
+    if (changePasswordDto.newPassword === changePasswordDto.oldPassword)
+      throw new UnauthorizedException('New password must be different');
+
     return this.usersService.changePassword(
       userId,
       changePasswordDto.oldPassword,
