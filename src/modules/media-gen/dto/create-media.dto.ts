@@ -21,7 +21,7 @@ export class CreateMediaDto {
   @IsEnum(MediaType, { message: 'Invalid media type' })
   mediaType: MediaType; // IMAGE or VIDEO
 
-  // TODO: Add additional fields (e.g., resolution) if needed
+  // Additional optional parameters
   @IsOptional()
   @IsNumber()
   guidanceScale?: number;

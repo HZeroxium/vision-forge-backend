@@ -19,7 +19,7 @@ export default () => ({
       ),
       negativePrompt: process.env.HUGGINGFACE_NEGATIVE_PROMPT ?? '',
       numInferenceSteps: parseInt(
-        process.env.HUGGINGFACE_INFERENCE_STEPS ?? '5',
+        process.env.HUGGINGFACE_INFERENCE_STEPS ?? '1',
       ),
       width: parseInt(process.env.HUGGINGFACE_IMAGE_WIDTH ?? '512'),
       height: parseInt(process.env.HUGGINGFACE_IMAGE_HEIGHT ?? '512'),

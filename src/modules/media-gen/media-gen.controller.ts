@@ -4,10 +4,10 @@ import {
   Controller,
   Get,
   Post,
-  Body,
   Patch,
-  Param,
   Delete,
+  Body,
+  Param,
   UseGuards,
   Req,
   Query,
@@ -26,27 +26,43 @@ import { Response } from 'express';
 export class MediaGenController {
   constructor(private readonly mediaGenService: MediaGenService) {}
 
+  /**
+   * Generate media from text prompt.
+   * Returns raw media content (e.g., image/png) as Buffer.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('buffer')
+  async generateMediaBuffer(
+    @Body() createMediaDto: CreateMediaDto,
+    @Req() req: any,
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      const buffer =
+        await this.mediaGenService.generateImageBuffer(createMediaDto);
+      res.setHeader('Content-Type', 'image/png');
+      res.status(HttpStatus.OK).send(buffer);
+    } catch (error) {
+      res.status(error.status || HttpStatus.INTERNAL_SERVER_ERROR).json({
+        errorCode: error.response?.errorCode || 'GEN_MEDIA_ERROR',
+        message: error.response?.message || 'Failed to generate media content',
+        details: error.response?.details || error.message,
+      });
+    }
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post()
   async generateMedia(
     @Body() createMediaDto: CreateMediaDto,
-    @Req() req: any, // JWT injected user
-    @Res() res: Response,
-  ) {
-    // For now, videoId is assumed to be provided in the request body.
-    // In production, this should be passed from previous workflow modules.
-    const userId = req.user.userId;
-    const buffer = await this.mediaGenService.generateMedia(createMediaDto);
-
-    res.setHeader('Content-Type', 'image/png');
-    res.send(buffer);
-    // const mediaId = await this.mediaGenService.createMediaFromImageBuffer(
-    //   buffer,
-    //   createMediaDto.prompt,
-    //   userId,
-    // );
+    @Req() req: any,
+  ): Promise<MediaResponseDto> {
+    return this.mediaGenService.generateImage(createMediaDto);
   }
 
+  /**
+   * Retrieve a paginated list of media assets.
+   */
   @UseGuards(JwtAuthGuard)
   @Get()
   async findAll(
@@ -56,12 +72,18 @@ export class MediaGenController {
     return this.mediaGenService.findAll(page, limit);
   }
 
+  /**
+   * Retrieve a single media asset by ID.
+   */
   @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<MediaResponseDto> {
     return this.mediaGenService.findOne(id);
   }
 
+  /**
+   * Update a media asset.
+   */
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async update(
@@ -71,6 +93,9 @@ export class MediaGenController {
     return this.mediaGenService.update(id, updateMediaDto);
   }
 
+  /**
+   * Soft delete a media asset.
+   */
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Param('id') id: string): Promise<MediaResponseDto> {
