@@ -47,7 +47,7 @@ export class AuthService {
     );
   }
 
-  async changePassword(userId: number, changePasswordDto: ChangePasswordDto) {
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
     if (changePasswordDto.newPassword === changePasswordDto.oldPassword)
       throw new UnauthorizedException('New password must be different');
 

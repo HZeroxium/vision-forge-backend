@@ -4,7 +4,7 @@ import { Role, User } from '@prisma/client';
 
 export class UserResponseDto {
   @ApiProperty()
-  id: number;
+  id: string;
 
   @ApiProperty()
   email: string;
