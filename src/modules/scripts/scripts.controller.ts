@@ -9,12 +9,14 @@ import {
   Delete,
   UseGuards,
   Req,
+  Query,
 } from '@nestjs/common';
 import { ScriptsService } from './scripts.service';
 import { CreateScriptDto } from './dto/create-script.dto';
 import { UpdateScriptDto } from './dto/update-script.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ScriptResponseDto } from './dto/script-response.dto';
+import { ScriptsPaginationDto } from './dto/scripts-pagination.dto';
 
 @Controller('scripts')
 export class ScriptsController {
@@ -22,7 +24,7 @@ export class ScriptsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(
+  async create(
     @Body() createScriptDto: CreateScriptDto,
     @Req() req: any,
   ): Promise<ScriptResponseDto> {
@@ -30,22 +32,28 @@ export class ScriptsController {
   }
 
   @Get()
-  findAll() {
-    return this.scriptsService.findAll();
+  async findAll(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ): Promise<ScriptsPaginationDto> {
+    return this.scriptsService.findAll(page, limit);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string): Promise<ScriptResponseDto> {
     return this.scriptsService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateScriptDto: UpdateScriptDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateScriptDto: UpdateScriptDto,
+  ): Promise<ScriptResponseDto> {
     return this.scriptsService.update(id, updateScriptDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string): Promise<ScriptResponseDto> {
     return this.scriptsService.remove(id);
   }
 }
