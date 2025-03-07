@@ -1,9 +1,17 @@
 // modules/publisher/publisher.service.ts
 
-import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PublishVideoDto } from './dto/publish-video.dto';
+import { UpdatePublisherDto } from './dto/update-publisher.dto';
 import { PrismaService } from '../../database/prisma.service';
 import { PublisherResponseDto } from './dto/publisher-response.dto';
+import { PublisherPaginationDto } from './dto/publisher-pagination.dto';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +25,20 @@ export class PublisherService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {}
+
+  // Map database record to PublisherResponseDto
+  private mapToResponse(publishingHistory: any): PublisherResponseDto {
+    return {
+      id: publishingHistory.id,
+      videoId: publishingHistory.videoId,
+      platform: publishingHistory.platform,
+      platformVideoId: publishingHistory.platformVideoId,
+      publishStatus: publishingHistory.publishStatus,
+      publishLogs: publishingHistory.publishLogs,
+      createdAt: publishingHistory.createdAt,
+      updatedAt: publishingHistory.updatedAt,
+    };
+  }
 
   async publishVideo(
     publishDto: PublishVideoDto,
@@ -58,7 +80,8 @@ export class PublisherService {
                 privacyStatus: 'public', // or 'private' / 'unlisted'
               },
               media: {
-                body: videoRecord.finalS3Url, // TODO: Replace with actual file stream if required
+                // TODO: Replace with actual file stream if required
+                body: videoRecord.finalS3Url,
               },
             },
             {
@@ -79,7 +102,7 @@ export class PublisherService {
         );
       }
     } else if (platform === 'TIKTOK') {
-      // TODO: Integrate TikTok API for video upload or use simulation for development
+      // TODO: Integrate TikTok API for video upload or simulate for development
       platformVideoId = 'SIMULATED_TIKTOK_ID';
       publishLogs = { message: 'Simulated TikTok upload' };
     } else if (platform === 'FACEBOOK') {
@@ -101,17 +124,74 @@ export class PublisherService {
       },
     });
 
-    const responseDto: PublisherResponseDto = {
-      id: publishingHistory.id,
-      videoId: publishingHistory.videoId,
-      platform: publishingHistory.platform,
-      platformVideoId: publishingHistory.platformVideoId,
-      publishStatus: publishingHistory.publishStatus,
-      publishLogs: publishingHistory.publishLogs,
-      createdAt: publishingHistory.createdAt,
-      updatedAt: publishingHistory.updatedAt,
-    };
+    return this.mapToResponse(publishingHistory);
+  }
 
-    return responseDto;
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PublisherPaginationDto> {
+    page = parseInt(page.toString(), 10);
+    limit = parseInt(limit.toString(), 10);
+    const skip = (page - 1) * limit;
+    const [histories, totalCount] = await this.prisma.$transaction([
+      this.prisma.publishingHistory.findMany({
+        where: {},
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.publishingHistory.count(),
+    ]);
+    const totalPages = Math.ceil(totalCount / limit);
+    const responses = histories.map((history) => this.mapToResponse(history));
+    return {
+      totalCount,
+      page,
+      limit,
+      totalPages,
+      publishingHistories: responses,
+    };
+  }
+
+  async findOne(id: string): Promise<PublisherResponseDto> {
+    const history = await this.prisma.publishingHistory.findUnique({
+      where: { id },
+    });
+    if (!history) {
+      throw new NotFoundException(`Publishing record with ID ${id} not found`);
+    }
+    return this.mapToResponse(history);
+  }
+
+  async update(
+    id: string,
+    updateDto: UpdatePublisherDto,
+  ): Promise<PublisherResponseDto> {
+    const history = await this.prisma.publishingHistory.findUnique({
+      where: { id },
+    });
+    if (!history) {
+      throw new NotFoundException(`Publishing record with ID ${id} not found`);
+    }
+    const updatedHistory = await this.prisma.publishingHistory.update({
+      where: { id },
+      data: updateDto,
+    });
+    return this.mapToResponse(updatedHistory);
+  }
+
+  async remove(id: string): Promise<PublisherResponseDto> {
+    const history = await this.prisma.publishingHistory.findUnique({
+      where: { id },
+    });
+    if (!history) {
+      throw new NotFoundException(`Publishing record with ID ${id} not found`);
+    }
+    // Optionally, perform a soft delete; here we simply delete it
+    const deletedHistory = await this.prisma.publishingHistory.delete({
+      where: { id },
+    });
+    return this.mapToResponse(deletedHistory);
   }
 }

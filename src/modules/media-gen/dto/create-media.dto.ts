@@ -1,6 +1,12 @@
 // modules/media-gen/dto/create-media.dto.ts
 
-import { IsString, IsNotEmpty, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsOptional,
+  IsNumber,
+} from 'class-validator';
 import { MediaType } from '@prisma/client';
 
 export class CreateMediaDto {
@@ -15,5 +21,24 @@ export class CreateMediaDto {
   @IsEnum(MediaType, { message: 'Invalid media type' })
   mediaType: MediaType; // IMAGE or VIDEO
 
-  // TODO: Add additional fields (e.g., resolution) if needed
+  // Additional optional parameters
+  @IsOptional()
+  @IsNumber()
+  guidanceScale?: number;
+
+  @IsOptional()
+  @IsString()
+  negativePrompt?: string;
+
+  @IsOptional()
+  @IsNumber()
+  numInferenceSteps?: number;
+
+  @IsOptional()
+  @IsNumber()
+  width?: number;
+
+  @IsOptional()
+  @IsNumber()
+  height?: number;
 }

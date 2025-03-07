@@ -120,8 +120,8 @@ model TtsAudioFile {
 
 model MediaAsset {
   id        String    @id @default(uuid())
-  video     Video     @relation(fields: [videoId], references: [id])
-  videoId   String
+  video     Video?    @relation(fields: [videoId], references: [id])
+  videoId   String?
   type      MediaType
   prompt    String // Prompt content
   style     String // Asset style

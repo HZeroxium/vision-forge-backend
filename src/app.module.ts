@@ -10,19 +10,20 @@ import { AppLoggerService } from './common/logger/logger.service';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
-import { ScriptGenModule } from './modules/script-gen/script-gen.module';
+import { ScriptsModule } from './modules/scripts/scripts.module';
 import { MediaGenModule } from './modules/media-gen/media-gen.module';
 import { PublisherModule } from './modules/publisher/publisher.module';
+import aiConfig from './config/ai.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, swaggerConfig],
+      load: [appConfig, swaggerConfig, aiConfig],
     }),
     AuthModule,
     UsersModule,
-    ScriptGenModule,
+    ScriptsModule,
     MediaGenModule,
     PublisherModule,
   ],
