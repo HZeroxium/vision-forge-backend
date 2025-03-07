@@ -21,8 +21,39 @@ enum Role {
   MODERATOR
 }
 
+enum VideoStatus {
+  DRAFT
+  PROCESSING
+  COMPLETED
+  PUBLISHED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum TTSProvider {
+  AMAZON_POLLY
+  GOOGLE_TTS
+  ELEVENLABS
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum PublishPlatform {
+  YOUTUBE
+  TIKTOK
+  FACEBOOK
+}
+
 model User {
-  id                   Int       @id @default(autoincrement())
+  id                   String    @id @default(uuid())
   email                String    @unique
   password             String
   name                 String?
@@ -32,4 +63,96 @@ model User {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
   deletedAt            DateTime?
+
+  scripts Script[]
+  videos  Video[]
+}
+
+model Script {
+  id        String    @id @default(uuid())
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  title     String
+  content   String // Script content
+  style     String // Example: "casual", "formal", "funny", etc.
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  video    Video?
+  ttsAudio TtsAudioFile[]
+}
+
+model Video {
+  id             String      @id @default(uuid())
+  user           User        @relation(fields: [userId], references: [id])
+  userId         String
+  script         Script?     @relation(fields: [scriptId], references: [id])
+  scriptId       String?     @unique
+  status         VideoStatus
+  finalS3Url     String? // Link completed video S3
+  thumbnailS3Url String? // Link thumbnail S3
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  deletedAt      DateTime?
+
+  ttsAudioFiles       TtsAudioFile[]
+  mediaAssets         MediaAsset[]
+  videoJobs           VideoGenerationJob[]
+  publishingHistories PublishingHistory[]
+}
+
+model TtsAudioFile {
+  id                 String               @id @default(uuid())
+  script             Script               @relation(fields: [scriptId], references: [id])
+  scriptId           String
+  provider           TTSProvider
+  voiceParams        Json // Config voice, speed, pitch, etc.
+  audioS3Url         String // Link file audio S3
+  durationSeconds    Int
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  deletedAt          DateTime?
+  Video              Video?               @relation(fields: [videoId], references: [id])
+  videoId            String?
+  VideoGenerationJob VideoGenerationJob[]
+}
+
+model MediaAsset {
+  id        String    @id @default(uuid())
+  video     Video     @relation(fields: [videoId], references: [id])
+  videoId   String
+  type      MediaType
+  prompt    String // Prompt content
+  style     String // Asset style
+  s3Url     String // Link file S3
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model VideoGenerationJob {
+  id          String        @id @default(uuid())
+  video       Video         @relation(fields: [videoId], references: [id])
+  videoId     String
+  ttsAudio    TtsAudioFile? @relation(fields: [ttsAudioId], references: [id])
+  ttsAudioId  String?
+  status      JobStatus
+  jobParams   Json //  timeline, effects, transitions, ...
+  resultS3Url String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+}
+
+model PublishingHistory {
+  id              String          @id @default(uuid())
+  video           Video           @relation(fields: [videoId], references: [id])
+  videoId         String
+  platform        PublishPlatform
+  platformVideoId String // ID or link in platform
+  publishStatus   String // Ex: "success", "failed"
+  publishLogs     Json // Log, error code, response from platform
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 }
