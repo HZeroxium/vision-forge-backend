@@ -15,14 +15,20 @@ import { PrismaService } from '../../database/prisma.service';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
+import { HfInference } from '@huggingface/inference';
+import { AppLoggerService } from 'src/common/logger/logger.service';
 
 @Injectable()
 export class MediaGenService {
+  private readonly hfClient: HfInference;
+  private readonly logger = new AppLoggerService();
   constructor(
     private readonly prisma: PrismaService,
-    private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    const hfApiKey = this.configService.get<string>('huggingFace.apiKey');
+    this.hfClient = new HfInference(hfApiKey);
+  }
 
   // Reusable mapper for MediaAsset to MediaResponseDto
   private mapToResponse(media: any): MediaResponseDto {
@@ -40,57 +46,85 @@ export class MediaGenService {
   // Create/Generate media using an external API
   async generateMedia(
     createMediaDto: CreateMediaDto,
-    videoId: string,
-  ): Promise<MediaResponseDto> {
-    const { prompt, style, mediaType } = createMediaDto;
-    const requestBody = {
+    // videoId: string,
+  ): Promise<Buffer> {
+    const {
       prompt,
-      style,
-      mediaType: mediaType.toLowerCase(), // expected: 'image' or 'video'
-      // TODO: Add additional parameters if required (e.g., resolution)
-    };
-
-    // Primary API configuration using Hugging Face Inference API
-    const hfApiKey = this.configService.get<string>('HUGGINGFACE_API_KEY');
-    const hfEndpoint =
-      this.configService.get<string>('HUGGINGFACE_MEDIA_ENDPOINT') ||
-      'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion';
-
-    let mediaUrl: string;
-    try {
-      const response = await firstValueFrom(
-        this.httpService.post(hfEndpoint, requestBody, {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${hfApiKey}`,
-          },
-        }),
+      guidanceScale,
+      negativePrompt,
+      numInferenceSteps,
+      width,
+      height,
+    } = createMediaDto;
+    const model = this.configService.get<string>(
+      'huggingFace.textToImage.model',
+    );
+    const finalGuidanceScale =
+      guidanceScale ??
+      this.configService.get<number>('huggingFace.textToImage.guidanceScale');
+    const finalNegativePrompt =
+      negativePrompt ??
+      this.configService.get<string>('huggingFace.textToImage.negativePrompt');
+    const finalSteps =
+      numInferenceSteps ??
+      this.configService.get<number>(
+        'huggingFace.textToImage.textToImage.textToImage.textToImage.textToImage.textToImage.textToImage.textToImage.textToImage.textToImage.numInferenceSteps',
       );
-      // Assume API returns media URL in response.data.url
-      mediaUrl = response.data.url;
-      if (!mediaUrl) {
-        throw new Error('No media URL returned');
-      }
+    const finalWidth =
+      width ?? this.configService.get<number>('huggingFace.textToImage.width');
+    const finalHeight =
+      height ??
+      this.configService.get<number>('huggingFace.textToImage.height');
+
+    try {
+      this.logger.log('Generating image from text prompt...');
+      const imageBlob = await this.hfClient.textToImage({
+        model: model,
+        inputs: prompt,
+        parameters: {
+          // guidance_scale: finalGuidanceScale,
+          // negative_prompt: finalNegativePrompt,
+          num_inference_steps: finalSteps,
+          // width: finalWidth,
+          // height: finalHeight,
+        },
+      });
+      this.logger.log('Image generated successfully.');
+      const arrayBuffer = await imageBlob.arrayBuffer();
+      return Buffer.from(arrayBuffer);
     } catch (error) {
-      // TODO: Implement fallback to alternative API such as DALL-E or Midjourney if available
+      this.logger.error('Hugging Face textToImage error:', error);
       throw new HttpException(
-        'Failed to generate media content',
+        {
+          errorCode: 'HF_TEXT_TO_IMAGE_ERROR',
+          message: 'Failed to generate image from text prompt.',
+          details: error.message,
+        },
         HttpStatus.BAD_GATEWAY,
       );
     }
-
-    // Save the media asset in the database
-    const newMedia = await this.prisma.mediaAsset.create({
-      data: {
-        videoId,
-        type: mediaType,
-        prompt,
-        style,
-        s3Url: mediaUrl, // External URL or S3 URL
-      },
-    });
-    return this.mapToResponse(newMedia);
   }
+
+  // private async createMediaFromImageBuffer(
+  //   buffer: Buffer,
+  //   prompt: string,
+  //   userId: string,
+  // ): Promise<string> {
+  //   // Upload to S3
+  //   const fakeS3Url = 'https://my-s3-bucket.com/path/to/image.png';
+
+  //   // Lưu DB (MediaAsset) -> prisma
+  //   const newMedia = await this.prisma.mediaAsset.create({
+  //     data: {
+  //       prompt,
+  //       style: 'text-to-image',
+  //       type: 'IMAGE',
+  //       s3Url: fakeS3Url,
+  //       // videoId: ???
+  //     },
+  //   });
+  //   return newMedia.id;
+  // }
 
   // Retrieve paginated list of media assets
   async findAll(

@@ -11,6 +11,8 @@ import {
   UseGuards,
   Req,
   Query,
+  Res,
+  HttpStatus,
 } from '@nestjs/common';
 import { MediaGenService } from './media-gen.service';
 import { CreateMediaDto } from './dto/create-media.dto';
@@ -18,21 +20,31 @@ import { UpdateMediaDto } from './dto/update-media.dto';
 import { MediaResponseDto } from './dto/media-response.dto';
 import { MediaPaginationDto } from './dto/media-pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Response } from 'express';
 
 @Controller('media-gen')
 export class MediaGenController {
   constructor(private readonly mediaGenService: MediaGenService) {}
 
   @UseGuards(JwtAuthGuard)
-  @Post('generate')
+  @Post()
   async generateMedia(
     @Body() createMediaDto: CreateMediaDto,
     @Req() req: any, // JWT injected user
-  ): Promise<MediaResponseDto> {
+    @Res() res: Response,
+  ) {
     // For now, videoId is assumed to be provided in the request body.
     // In production, this should be passed from previous workflow modules.
-    const videoId = req.body.videoId || '// TODO: Obtain videoId from workflow';
-    return this.mediaGenService.generateMedia(createMediaDto, videoId);
+    const userId = req.user.userId;
+    const buffer = await this.mediaGenService.generateMedia(createMediaDto);
+
+    res.setHeader('Content-Type', 'image/png');
+    res.send(buffer);
+    // const mediaId = await this.mediaGenService.createMediaFromImageBuffer(
+    //   buffer,
+    //   createMediaDto.prompt,
+    //   userId,
+    // );
   }
 
   @UseGuards(JwtAuthGuard)

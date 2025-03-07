@@ -20,7 +20,6 @@ import { ScriptsPaginationDto } from './dto/scripts-pagination.dto';
 export class ScriptsService {
   private readonly hfClient: HfInference;
   private readonly logger = new AppLoggerService();
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
@@ -58,11 +57,19 @@ export class ScriptsService {
 
     try {
       const stream = this.hfClient.chatCompletionStream({
-        model: this.configService.get<string>('huggingFace.model'),
+        model: this.configService.get<string>(
+          'huggingFace.textGeneration.model',
+        ),
         messages: messages,
-        temperature: this.configService.get<number>('huggingFace.temperature'),
-        max_tokens: this.configService.get<number>('huggingFace.maxTokens'),
-        top_p: this.configService.get<number>('huggingFace.topP'),
+        temperature: this.configService.get<number>(
+          'huggingFace.textGeneration.temperature',
+        ),
+        max_tokens: this.configService.get<number>(
+          'huggingFace.textGeneration.maxTokens',
+        ),
+        top_p: this.configService.get<number>(
+          'huggingFace.textGeneration.topP',
+        ),
       });
 
       for await (const chunk of stream) {
