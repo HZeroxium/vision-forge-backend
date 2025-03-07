@@ -24,11 +24,23 @@ export class ScriptsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  async create(
+  async createScript(
     @Body() createScriptDto: CreateScriptDto,
     @Req() req: any,
   ): Promise<ScriptResponseDto> {
-    return this.scriptsService.create(createScriptDto, req.user.userId);
+    return this.scriptsService.createScript(createScriptDto, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('summarize')
+  async create(
+    @Body('scriptContent') scriptContent: string,
+    @Body('numPrompts') numPrompts: string,
+  ) {
+    return this.scriptsService.summarizeScriptForImages(
+      scriptContent,
+      numPrompts,
+    );
   }
 
   @Get()

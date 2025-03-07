@@ -32,4 +32,3 @@ export class PublishVideoDto {
 
   // TODO: Optionally add more parameters like privacy settings
 }
-
