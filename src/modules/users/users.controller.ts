@@ -33,7 +33,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  findById(@Param('id', ParseIntPipe) id: number): Promise<UserResponseDto> {
+  findById(@Param('id', ParseIntPipe) id: string): Promise<UserResponseDto> {
     return this.usersService.findById(id);
   }
 
@@ -44,14 +44,14 @@ export class UsersController {
 
   @Put(':id')
   update(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id', ParseIntPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
-  delete(@Param('id', ParseIntPipe) id: number) {
+  delete(@Param('id', ParseIntPipe) id: string) {
     return this.usersService.delete(id);
   }
 }

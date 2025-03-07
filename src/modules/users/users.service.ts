@@ -19,7 +19,12 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Returns all users in the database.
+   * Retrieves a paginated list of users.
+   *
+   * @param page - The page number to retrieve (default is 1).
+   * @param limit - The number of users per page (default is 10).
+   * @param order - The order of users by 'asc' or 'desc' (default is 'asc').
+   * @returns A promise that resolves to a UsersPaginationDto containing paginated users and metadata.
    */
   async findAll(
     page: number = 1,
@@ -29,9 +34,13 @@ export class UsersService {
     // Convert page and limit to integers
     page = parseInt(page.toString(), 10);
     limit = parseInt(limit.toString(), 10);
+
+    // Calculate the number of records to skip
     const skip = (page - 1) * limit;
 
+    // Execute a transaction to retrieve users and total count
     const [users, totalCount] = await this.prisma.$transaction([
+      // Retrieve users with pagination and ordering
       this.prisma.user.findMany({
         where: { deletedAt: null },
         select: {
@@ -45,9 +54,11 @@ export class UsersService {
         skip,
         take: limit,
       }),
+      // Count the total number of users
       this.prisma.user.count({ where: { deletedAt: null } }),
     ]);
 
+    // Return the paginated list and metadata
     return {
       totalCount,
       page,
@@ -65,7 +76,7 @@ export class UsersService {
    * @returns The user with the given ID.
    * @throws {NotFoundException} If the user is not found.
    */
-  async findById(id: number): Promise<UserResponseDto> {
+  async findById(id: string): Promise<UserResponseDto> {
     const user = await this.prisma.user.findUnique({
       where: { id, deletedAt: null },
       select: {
@@ -116,7 +127,7 @@ export class UsersService {
    * @param updateUserDto The details to update.
    * @returns The updated user.
    */
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findById(id);
     if (!user) throw new NotFoundException('User not found');
 
@@ -141,7 +152,7 @@ export class UsersService {
    * @param id The ID of the user to delete.
    * @returns The deleted user.
    */
-  async delete(id: number): Promise<User> {
+  async delete(id: string): Promise<User> {
     const user = await this.findById(id);
     if (!user) throw new NotFoundException('User not found');
 
@@ -206,7 +217,7 @@ export class UsersService {
    * @throws {UnauthorizedException} If the old password is incorrect.
    */
   async changePassword(
-    userId: number,
+    userId: string,
     oldPassword: string,
     newPassword: string,
   ): Promise<User> {
