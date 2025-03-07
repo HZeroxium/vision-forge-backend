@@ -10,6 +10,9 @@ import { AppLoggerService } from './common/logger/logger.service';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { ScriptGenModule } from './modules/script-gen/script-gen.module';
+import { MediaGenModule } from './modules/media-gen/media-gen.module';
+import { PublisherModule } from './modules/publisher/publisher.module';
 
 @Module({
   imports: [
@@ -19,6 +22,9 @@ import { UsersModule } from './modules/users/users.module';
     }),
     AuthModule,
     UsersModule,
+    ScriptGenModule,
+    MediaGenModule,
+    PublisherModule,
   ],
   controllers: [AppController],
   providers: [
