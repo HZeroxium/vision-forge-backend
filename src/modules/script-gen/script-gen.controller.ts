@@ -1,5 +1,12 @@
 // modules/script-gen/script-gen.controller.ts
-import { Controller, Post, Body, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Req,
+  UseGuards,
+  BadRequestException,
+} from '@nestjs/common';
 import { ScriptGenService } from './script-gen.service';
 import { CreateScriptDto } from './dto/create-script.dto';
 import { ScriptResponseDto } from './dto/script-response.dto';
