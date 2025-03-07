@@ -1,4 +1,4 @@
-// modules/script-gen/dto/create-script.dto.ts
+// modules/scripts/dto/create-script.dto.ts
 import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateScriptDto {
