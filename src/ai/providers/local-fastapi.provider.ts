@@ -1,4 +1,4 @@
-// src/ai/providers/local-fastapi.provider.ts
+// ai/providers/local-fastapi.provider.ts
 import { AIProvider } from '../ai-provider.interface';
 import { AIImageProvider } from '../ai-image-provider.interface';
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';

@@ -13,7 +13,6 @@ import { MediaResponseDto } from './dto/media-response.dto';
 import { MediaPaginationDto } from './dto/media-pagination.dto';
 import { PrismaService } from '../../database/prisma.service';
 import { ConfigService } from '@nestjs/config';
-import { HfInference } from '@huggingface/inference';
 import { AppLoggerService } from 'src/common/logger/logger.service';
 import { Upload } from '@aws-sdk/lib-storage';
 import { S3Client } from '@aws-sdk/client-s3';

@@ -1,4 +1,4 @@
-// src/ai/ai.service.ts
+// ai/ai.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIProvider } from './ai-provider.interface';

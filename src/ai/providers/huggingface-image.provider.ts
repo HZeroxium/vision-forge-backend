@@ -1,4 +1,4 @@
-// src/ai/providers/huggingface-image.provider.ts
+// ai/providers/huggingface-image.provider.ts
 import { AIImageProvider } from '../ai-image-provider.interface';
 import { HfInference } from '@huggingface/inference';
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';

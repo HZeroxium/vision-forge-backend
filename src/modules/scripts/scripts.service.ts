@@ -65,7 +65,6 @@ export class ScriptsService {
       );
     }
 
-    // Lưu DB
     try {
       const newScript = await this.prisma.script.create({
         data: {
@@ -152,7 +151,6 @@ export class ScriptsService {
     return mapScriptToResponse(deletedScript);
   }
 
-  // Function to summarize the generated script into multiple image prompts.
   async summarizeScriptForImages(
     scriptContent: string,
     numPrompts: string,
@@ -161,7 +159,7 @@ export class ScriptsService {
     this.logger.log(scriptContent);
     const language = 'Vietnamese';
     // Use the same style as the script (or allow a different one if needed)
-    const style = 'phổ thông';
+    const style = 'common';
     const maxTokens = this.configService.get<number>(
       'huggingFace.textGeneration.maxTokens',
     )!;

@@ -1,4 +1,4 @@
-// src/ai/ai-image-provider.interface.ts
+// ai/ai-image-provider.interface.ts
 export interface AIImageProvider {
   /**
    * Generate an image from a text prompt.
