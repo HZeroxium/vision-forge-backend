@@ -6,12 +6,14 @@ import { MediaGenController } from './media-gen.controller';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from '../../database/database.module';
+import { AIModule } from 'src/ai/ai.module';
 
 @Module({
   imports: [
     HttpModule, // For making API calls
     ConfigModule, // To access environment variables
     DatabaseModule, // For Prisma integration
+    AIModule, // For AI integration
   ],
   controllers: [MediaGenController],
   providers: [MediaGenService],

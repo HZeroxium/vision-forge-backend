@@ -17,19 +17,17 @@ import { HfInference } from '@huggingface/inference';
 import { AppLoggerService } from 'src/common/logger/logger.service';
 import { Upload } from '@aws-sdk/lib-storage';
 import { S3Client } from '@aws-sdk/client-s3';
+import { AIService } from 'src/ai/ai.service';
 
 @Injectable()
 export class MediaGenService {
-  private readonly hfClient: HfInference;
   private readonly logger = new AppLoggerService();
   private readonly s3: S3Client;
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly aiService: AIService,
   ) {
-    const hfApiKey = this.configService.get<string>('huggingFace.apiKey');
-    this.hfClient = new HfInference(hfApiKey);
-
     this.s3 = new S3Client({
       region: this.configService.get<string>('aws.region')!,
       credentials: {
@@ -82,18 +80,13 @@ export class MediaGenService {
     }
   }
 
-  /**
-   * Generates media content (image/video) based on a text prompt,
-   * uploads the result to S3, saves metadata to the database,
-   * and returns a MediaResponseDto.
-   */
   async generateImage(
     createMediaDto: CreateMediaDto,
   ): Promise<MediaResponseDto> {
     const {
       prompt,
       style,
-      mediaType,
+      mediaType, // expected: 'IMAGE'
       guidanceScale,
       negativePrompt,
       numInferenceSteps,
@@ -101,80 +94,75 @@ export class MediaGenService {
       height,
     } = createMediaDto;
 
-    // Validate required fields
     if (!prompt || !style || !mediaType) {
       throw new BadRequestException(
         'Prompt, style, and mediaType are required.',
       );
     }
 
-    // Prepare parameters with defaults from config
-    const model = this.configService.get<string>(
-      'huggingFace.textToImage.model',
-    );
-    const finalGuidanceScale =
-      guidanceScale ??
-      this.configService.get<number>('huggingFace.textToImage.guidanceScale');
-    const finalNegativePrompt =
-      negativePrompt ??
-      this.configService.get<string>('huggingFace.textToImage.negativePrompt');
-    const finalSteps =
-      numInferenceSteps ??
-      this.configService.get<number>(
-        'huggingFace.textToImage.numInferenceSteps',
-      );
-    const finalWidth =
-      width ?? this.configService.get<number>('huggingFace.textToImage.width');
-    const finalHeight =
-      height ??
-      this.configService.get<number>('huggingFace.textToImage.height');
+    // Prepare parameters for image generation
+    const parameters = {
+      model: this.configService.get<string>('huggingFace.textToImage.model'),
+      guidance_scale:
+        guidanceScale ??
+        this.configService.get<number>('huggingFace.textToImage.guidanceScale'),
+      negative_prompt:
+        negativePrompt ??
+        this.configService.get<string>(
+          'huggingFace.textToImage.negativePrompt',
+        ),
+      num_inference_steps:
+        numInferenceSteps ??
+        this.configService.get<number>(
+          'huggingFace.textToImage.numInferenceSteps',
+        ),
+      width:
+        width ??
+        this.configService.get<number>('huggingFace.textToImage.width'),
+      height:
+        height ??
+        this.configService.get<number>('huggingFace.textToImage.height'),
+    };
 
-    let buffer: Buffer;
+    let imageBuffer: Buffer;
     try {
-      this.logger.log('Generating media via Hugging Face textToImage...');
-      // Call external API; adjust parameters as per your API's documentation
-      const imageBlob = await this.hfClient.textToImage({
-        model: model,
-        inputs: prompt,
-        parameters: {
-          // Optional parameters can be included here:
-          // guidance_scale: finalGuidanceScale,
-          // negative_prompt: finalNegativePrompt,
-          num_inference_steps: finalSteps,
-          // width: finalWidth,
-          // height: finalHeight,
-        },
-      });
-      this.logger.log('Media generated successfully.');
-      // Convert Blob to Buffer
-      const arrayBuffer = await imageBlob.arrayBuffer();
-      buffer = Buffer.from(arrayBuffer);
+      imageBuffer = await this.aiService.generateImage(prompt, parameters);
     } catch (error) {
-      this.logger.error('Hugging Face textToImage error:', error);
+      this.logger.error('Error generating image:', error);
       throw new HttpException(
         {
-          errorCode: 'HF_TEXT_TO_IMAGE_ERROR',
-          message: 'Failed to generate media content from text prompt.',
-          details: error.response?.data || error.message,
+          errorCode: 'IMAGE_GENERATION_ERROR',
+          message: 'Failed to generate image from AI provider.',
+          details: error.message,
         },
         HttpStatus.BAD_GATEWAY,
       );
     }
-    // Generate a unique S3 key for the file
+
+    // Upload image buffer to S3
     const s3Key = `media/${Date.now()}-${Math.random().toString(36).substring(2, 15)}.png`;
-
-    // TODO: Upload buffer to S3 and obtain the URL
-    // const s3Url = await this.uploadBufferToS3(buffer, s3Key);
-
-    // Mocking upload to S3
-    const s3Url = 'https://example.com/media/123.png';
-
-    // Save the media asset record in the database
-    let newMediaAsset;
+    const bucketName = this.configService.get<string>('aws.bucketName')!;
+    let s3Url: string;
     try {
-      newMediaAsset = await this.prisma.mediaAsset.create({
+      // You can use the helper method uploadBufferToS3() here
+      s3Url = await this.uploadBufferToS3(imageBuffer, s3Key);
+    } catch (error) {
+      this.logger.error('S3 upload error:', error);
+      throw new HttpException(
+        {
+          errorCode: 'S3_UPLOAD_ERROR',
+          message: 'Failed to upload generated image to S3.',
+          details: error.message,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    // Save media asset to database
+    let newMedia;
+    try {
+      newMedia = await this.prisma.mediaAsset.create({
         data: {
-          // If videoId is needed, pass it here (could be extended later)
           type: mediaType,
           prompt,
           style,
@@ -193,7 +181,7 @@ export class MediaGenService {
       );
     }
 
-    return this.mapToResponse(newMediaAsset);
+    return this.mapToResponse(newMedia);
   }
 
   /**
@@ -310,26 +298,20 @@ export class MediaGenService {
       height ??
       this.configService.get<number>('huggingFace.textToImage.height');
 
+    const parameters = {
+      model,
+      guidanceScale: finalGuidanceScale,
+      negativePrompt: finalNegativePrompt,
+      numInferenceSteps: finalSteps,
+      width: finalWidth,
+      height: finalHeight,
+    };
+
     let buffer: Buffer;
     try {
       this.logger.log('Generating media via Hugging Face textToImage...');
       // Call external API; adjust parameters as per your API's documentation
-      const imageBlob = await this.hfClient.textToImage({
-        model: model,
-        inputs: prompt,
-        parameters: {
-          // Optional parameters can be included here:
-          // guidance_scale: finalGuidanceScale,
-          // negative_prompt: finalNegativePrompt,
-          // num_inference_steps: finalSteps,
-          // width: finalWidth,
-          // height: finalHeight,
-        },
-      });
-      this.logger.log('Media generated successfully.');
-      // Convert Blob to Buffer
-      const arrayBuffer = await imageBlob.arrayBuffer();
-      buffer = Buffer.from(arrayBuffer);
+      buffer = await this.aiService.generateImage(prompt, parameters);
       return buffer;
     } catch (error) {
       this.logger.error('Hugging Face textToImage error:', error);

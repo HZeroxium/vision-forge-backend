@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { CreateScriptDto } from './dto/create-script.dto';
 import { UpdateScriptDto } from './dto/update-script.dto';
-import { HfInference } from '@huggingface/inference';
 import { PrismaService } from 'src/database/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ScriptsPaginationDto } from './dto/scripts-pagination.dto';
@@ -19,19 +18,17 @@ import {
   summarizeScriptToImagePrompts,
 } from 'src/common/utils/ai.util';
 import { AppLoggerService } from 'src/common/logger/logger.service';
+import { AIService } from 'src/ai/ai.service';
 
 @Injectable()
 export class ScriptsService {
-  private readonly hfClient: HfInference;
   private readonly logger = new AppLoggerService();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-  ) {
-    const hfApiKey = this.configService.get<string>('huggingFace.apiKey');
-    this.hfClient = new HfInference(hfApiKey);
-  }
+    private readonly aiService: AIService,
+  ) {}
 
   async createScript(
     createScriptDto: CreateScriptDto,
@@ -52,43 +49,23 @@ export class ScriptsService {
       language,
       maxTokens,
     );
+
     let generatedScript = '';
-
     try {
-      const stream = this.hfClient.chatCompletionStream({
-        model: this.configService.get<string>(
-          'huggingFace.textGeneration.model',
-        ),
-        messages,
-        temperature: this.configService.get<number>(
-          'huggingFace.textGeneration.temperature',
-        ),
-        max_tokens: this.configService.get<number>(
-          'huggingFace.textGeneration.maxTokens',
-        ),
-        top_p: this.configService.get<number>(
-          'huggingFace.textGeneration.topP',
-        ),
-      });
-
-      for await (const chunk of stream) {
-        if (chunk.choices?.length > 0) {
-          generatedScript += chunk.choices[0].delta.content;
-        }
-      }
+      // Gọi AIService thay vì gọi trực tiếp HfInference
+      generatedScript = await this.aiService.generateText(messages);
     } catch (error) {
       throw new HttpException(
         {
-          errorCode: 'HF_API_ERROR',
-          message:
-            'Failed to generate script content due to external API error.',
-          details: error.response?.data || error.message,
+          errorCode: 'AI_ERROR',
+          message: 'Failed to generate script content from AI provider.',
+          details: error.message,
         },
         HttpStatus.BAD_GATEWAY,
       );
     }
 
-    // Save the generated script into your database.
+    // Lưu DB
     try {
       const newScript = await this.prisma.script.create({
         data: {
@@ -198,27 +175,7 @@ export class ScriptsService {
     let summarizedPrompts = '';
 
     try {
-      const stream = this.hfClient.chatCompletionStream({
-        model: this.configService.get<string>(
-          'huggingFace.textGeneration.model',
-        ),
-        messages,
-        temperature: this.configService.get<number>(
-          'huggingFace.textGeneration.temperature',
-        ),
-        max_tokens: this.configService.get<number>(
-          'huggingFace.textGeneration.maxTokens',
-        ),
-        top_p: this.configService.get<number>(
-          'huggingFace.textGeneration.topP',
-        ),
-      });
-
-      for await (const chunk of stream) {
-        if (chunk.choices?.length > 0) {
-          summarizedPrompts += chunk.choices[0].delta.content;
-        }
-      }
+      summarizedPrompts = await this.aiService.generateText(messages);
     } catch (error) {
       throw new HttpException(
         {
