@@ -11,9 +11,11 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { ScriptsModule } from './modules/scripts/scripts.module';
-import { MediaGenModule } from './modules/media-gen/media-gen.module';
 import { PublisherModule } from './modules/publisher/publisher.module';
 import aiConfig from './config/ai.config';
+import { ImagesModule } from './modules/images/images.module';
+import { AudiosModule } from './modules/audios/audios.module';
+import { VideosModule } from './modules/videos/videos.module';
 
 @Module({
   imports: [
@@ -24,7 +26,9 @@ import aiConfig from './config/ai.config';
     AuthModule,
     UsersModule,
     ScriptsModule,
-    MediaGenModule,
+    ImagesModule,
+    AudiosModule,
+    VideosModule,
     PublisherModule,
   ],
   controllers: [AppController],

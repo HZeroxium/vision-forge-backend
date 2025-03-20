@@ -16,6 +16,8 @@ import {
   CreateVideoResponse,
 } from './dto/fastapi.dto';
 
+import { TTSProvider } from '@prisma/client';
+
 @Injectable()
 export class AIService {
   private readonly logger = new Logger(AIService.name);
@@ -92,11 +94,13 @@ export class AIService {
    */
   async createAudio(
     request: CreateAudioRequest,
-    provider: 'openai' | 'google' = 'openai',
+    provider: TTSProvider = 'OPENAI',
     dummy: boolean = false,
   ): Promise<CreateAudioResponse> {
     let endpoint =
-      provider === 'openai' ? '/audio/tts/openai' : '/audio/tts/google';
+      provider === TTSProvider.OPENAI
+        ? '/audio/tts/openai'
+        : '/audio/tts/google';
     if (dummy) {
       endpoint += '/dummy';
     }
