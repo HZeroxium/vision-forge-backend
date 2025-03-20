@@ -17,6 +17,7 @@ import { UpdateScriptDto } from './dto/update-script.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ScriptResponseDto } from './dto/script-response.dto';
 import { ScriptsPaginationDto } from './dto/scripts-pagination.dto';
+import { CreateImagePromptsDto } from './dto/create-image-prompts.dto';
 
 @Controller('scripts')
 export class ScriptsController {
@@ -31,16 +32,15 @@ export class ScriptsController {
     return this.scriptsService.createScript(createScriptDto, req.user.userId);
   }
 
+  /**
+   * Generate image prompts based on script content.
+   */
   @UseGuards(JwtAuthGuard)
-  @Post('summarize')
-  async create(
-    @Body('scriptContent') scriptContent: string,
-    @Body('numPrompts') numPrompts: string,
+  @Post('image-prompts')
+  async createImagePrompts(
+    @Body() createImagePromptsDto: CreateImagePromptsDto,
   ) {
-    return this.scriptsService.summarizeScriptForImages(
-      scriptContent,
-      numPrompts,
-    );
+    return this.scriptsService.createImagePrompts(createImagePromptsDto);
   }
 
   @Get()

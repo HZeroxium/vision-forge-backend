@@ -20,36 +20,10 @@ import { UpdateMediaDto } from './dto/update-media.dto';
 import { MediaResponseDto } from './dto/media-response.dto';
 import { MediaPaginationDto } from './dto/media-pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { Response } from 'express';
 
 @Controller('media-gen')
 export class MediaGenController {
   constructor(private readonly mediaGenService: MediaGenService) {}
-
-  /**
-   * Generate media from text prompt.
-   * Returns raw media content (e.g., image/png) as Buffer.
-   */
-  @UseGuards(JwtAuthGuard)
-  @Post('buffer')
-  async generateMediaBuffer(
-    @Body() createMediaDto: CreateMediaDto,
-    @Req() req: any,
-    @Res() res: Response,
-  ): Promise<void> {
-    try {
-      const buffer =
-        await this.mediaGenService.generateImageBuffer(createMediaDto);
-      res.setHeader('Content-Type', 'image/png');
-      res.status(HttpStatus.OK).send(buffer);
-    } catch (error) {
-      res.status(error.status || HttpStatus.INTERNAL_SERVER_ERROR).json({
-        errorCode: error.response?.errorCode || 'GEN_MEDIA_ERROR',
-        message: error.response?.message || 'Failed to generate media content',
-        details: error.response?.details || error.message,
-      });
-    }
-  }
 
   @UseGuards(JwtAuthGuard)
   @Post()

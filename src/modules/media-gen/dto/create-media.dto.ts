@@ -19,7 +19,7 @@ export class CreateMediaDto {
   style: string; // e.g., "cartoon", "realistic", etc.
 
   @IsEnum(MediaType, { message: 'Invalid media type' })
-  mediaType: MediaType; // IMAGE or VIDEO
+  mediaType: MediaType = MediaType.IMAGE; // IMAGE or VIDEO
 
   // Additional optional parameters
   @IsOptional()

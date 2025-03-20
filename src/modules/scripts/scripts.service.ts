@@ -13,12 +13,14 @@ import { ConfigService } from '@nestjs/config';
 import { ScriptsPaginationDto } from './dto/scripts-pagination.dto';
 import { mapScriptToResponse } from './utils';
 import { ScriptResponseDto } from './dto/script-response.dto';
-import {
-  generateScriptMessages,
-  summarizeScriptToImagePrompts,
-} from 'src/common/utils/ai.util';
 import { AppLoggerService } from 'src/common/logger/logger.service';
 import { AIService } from 'src/ai/ai.service';
+import {
+  CreateImagePromptsRequest,
+  CreateImagePromptsResponse,
+  CreateScriptResponse,
+} from 'src/ai/dto/fastapi.dto';
+import { CreateImagePromptsDto } from './dto/create-image-prompts.dto';
 
 @Injectable()
 export class ScriptsService {
@@ -30,30 +32,24 @@ export class ScriptsService {
     private readonly aiService: AIService,
   ) {}
 
+  /**
+   * Create a new script by calling AIService to generate content, then saving into DB.
+   */
   async createScript(
     createScriptDto: CreateScriptDto,
     userId: string,
   ): Promise<ScriptResponseDto> {
-    const { rawContent, style, title } = createScriptDto;
-    if (!rawContent || !style) {
-      throw new BadRequestException('Raw content and style are required.');
+    const { title, style } = createScriptDto;
+    if (!title || !style) {
+      throw new BadRequestException('Title and style are required.');
     }
-
-    const language = 'Vietnamese';
-    const maxTokens = this.configService.get<number>(
-      'huggingFace.textGeneration.maxTokens',
-    )!;
-    const messages = generateScriptMessages(
-      rawContent,
-      style,
-      language,
-      maxTokens,
-    );
-
-    let generatedScript = '';
+    let generatedScript: CreateScriptResponse;
     try {
-      // Gọi AIService thay vì gọi trực tiếp HfInference
-      generatedScript = await this.aiService.generateText(messages);
+      // Call AIService to generate the script (using dummy endpoint for testing)
+      generatedScript = await this.aiService.createScript(
+        { title, style },
+        true,
+      );
     } catch (error) {
       throw new HttpException(
         {
@@ -69,8 +65,8 @@ export class ScriptsService {
       const newScript = await this.prisma.script.create({
         data: {
           userId,
-          title: title || 'Untitled Script',
-          content: generatedScript,
+          title,
+          content: generatedScript.content,
           style,
         },
       });
@@ -83,6 +79,29 @@ export class ScriptsService {
           details: dbError.message,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Generate image prompts from script content via AIService.
+   */
+  async createImagePrompts(
+    createImagePromptsDto: CreateImagePromptsDto,
+  ): Promise<CreateImagePromptsResponse> {
+    try {
+      return await this.aiService.createImagePrompts(
+        createImagePromptsDto,
+        true,
+      );
+    } catch (error) {
+      throw new HttpException(
+        {
+          errorCode: 'AI_ERROR',
+          message: 'Failed to generate image prompts.',
+          details: error.message,
+        },
+        HttpStatus.BAD_GATEWAY,
       );
     }
   }
@@ -149,52 +168,5 @@ export class ScriptsService {
       data: { deletedAt: new Date() },
     });
     return mapScriptToResponse(deletedScript);
-  }
-
-  async summarizeScriptForImages(
-    scriptContent: string,
-    numPrompts: string,
-  ): Promise<Object> {
-    this.logger.log('Summarize script for image prompts');
-    this.logger.log(scriptContent);
-    const language = 'Vietnamese';
-    // Use the same style as the script (or allow a different one if needed)
-    const style = 'common';
-    const maxTokens = this.configService.get<number>(
-      'huggingFace.textGeneration.maxTokens',
-    )!;
-    const messages = summarizeScriptToImagePrompts(
-      scriptContent,
-      language,
-      style,
-      maxTokens,
-      Number(numPrompts),
-    );
-    let summarizedPrompts = '';
-
-    try {
-      summarizedPrompts = await this.aiService.generateText(messages);
-    } catch (error) {
-      throw new HttpException(
-        {
-          errorCode: 'HF_API_ERROR',
-          message: 'Failed to summarize script for image prompts.',
-          details: error.response?.data || error.message,
-        },
-        HttpStatus.BAD_GATEWAY,
-      );
-    }
-
-    // Assume that the summarized result contains multiple prompts separated by newline.
-    // You can customize the splitting logic as needed.
-    const promptsArray = summarizedPrompts
-      .split('\n')
-      .map((prompt) => prompt.trim())
-      .filter((prompt) => prompt);
-    return {
-      count: promptsArray.length,
-      prompts: promptsArray,
-      summarizedPrompts,
-    };
   }
 }
