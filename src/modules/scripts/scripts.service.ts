@@ -46,10 +46,7 @@ export class ScriptsService {
     let generatedScript: CreateScriptResponse;
     try {
       // Call AIService to generate the script (using dummy endpoint for testing)
-      generatedScript = await this.aiService.createScript(
-        { title, style },
-        true,
-      );
+      generatedScript = await this.aiService.createScript({ title, style });
     } catch (error) {
       throw new HttpException(
         {
@@ -90,10 +87,7 @@ export class ScriptsService {
     createImagePromptsDto: CreateImagePromptsDto,
   ): Promise<CreateImagePromptsResponse> {
     try {
-      return await this.aiService.createImagePrompts(
-        createImagePromptsDto,
-        true,
-      );
+      return await this.aiService.createImagePrompts(createImagePromptsDto);
     } catch (error) {
       throw new HttpException(
         {

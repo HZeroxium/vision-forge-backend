@@ -41,7 +41,7 @@ export class ImagesService {
     // Call AIService to generate the image (using dummy endpoint for testing purposes)
     let generatedImage;
     try {
-      generatedImage = await this.aiService.createImage({ prompt }, true);
+      generatedImage = await this.aiService.createImage({ prompt });
     } catch (error) {
       throw new HttpException(
         {

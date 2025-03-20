@@ -21,6 +21,10 @@ export class CreateVideoDto {
   @IsNotEmpty()
   audioUrl: string;
 
+  @IsString()
+  @IsNotEmpty()
+  scriptId: string;
+
   @IsOptional()
   @IsNumber()
   transitionDuration?: number;

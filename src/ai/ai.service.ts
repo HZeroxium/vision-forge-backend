@@ -22,6 +22,7 @@ import { TTSProvider } from '@prisma/client';
 export class AIService {
   private readonly logger = new Logger(AIService.name);
   private readonly fastApiUrl: string;
+  private IS_DUMMY_MODE: boolean = false;
 
   constructor(
     private readonly configService: ConfigService,
@@ -29,9 +30,14 @@ export class AIService {
   ) {
     // Get FastAPI base URL from environment variable FASTAPI_URL, defaulting to localhost if not set.
     this.fastApiUrl = this.configService.get<string>(
-      'FASTAPI_URL',
+      'fastAPI.url',
       'http://127.0.0.1:8000',
     );
+
+    this.IS_DUMMY_MODE =
+      this.configService.get<string>('fastAPI.isDummyMode', 'false') === 'true';
+
+    this.logger.debug(`FastAPI URL: ${this.fastApiUrl}`);
   }
 
   /**
@@ -39,11 +45,13 @@ export class AIService {
    */
   async createScript(
     request: CreateScriptRequest,
-    dummy: boolean = false,
   ): Promise<CreateScriptResponse> {
     let url = `${this.fastApiUrl}/text/script/create`;
-    if (dummy) {
+    this.logger.log(`IS_DUMMY_MODE: ${this.IS_DUMMY_MODE}`);
+
+    if (this.IS_DUMMY_MODE) {
       url += '/dummy';
+      this.logger.log(`Appending '/dummy' to URL: ${url}`);
     }
     this.logger.log(`Calling FastAPI create script at ${url}`);
     const response = await lastValueFrom(
@@ -55,12 +63,9 @@ export class AIService {
   /**
    * Calls FastAPI endpoint to generate an image based on a prompt.
    */
-  async createImage(
-    request: CreateImageRequest,
-    dummy: boolean = false,
-  ): Promise<CreateImageResponse> {
+  async createImage(request: CreateImageRequest): Promise<CreateImageResponse> {
     let url = `${this.fastApiUrl}/image/generate`;
-    if (dummy) {
+    if (this.IS_DUMMY_MODE) {
       url += '/dummy';
     }
     this.logger.log(`Calling FastAPI generate image at ${url}`);
@@ -75,10 +80,9 @@ export class AIService {
    */
   async createImagePrompts(
     request: CreateImagePromptsRequest,
-    dummy: boolean = false,
   ): Promise<CreateImagePromptsResponse> {
     let url = `${this.fastApiUrl}/text/create-image-prompts`;
-    if (dummy) {
+    if (this.IS_DUMMY_MODE) {
       url += '/dummy';
     }
     this.logger.log(`Calling FastAPI create image prompts at ${url}`);
@@ -95,13 +99,12 @@ export class AIService {
   async createAudio(
     request: CreateAudioRequest,
     provider: TTSProvider = 'OPENAI',
-    dummy: boolean = false,
   ): Promise<CreateAudioResponse> {
     let endpoint =
       provider === TTSProvider.OPENAI
         ? '/audio/tts/openai'
         : '/audio/tts/google';
-    if (dummy) {
+    if (this.IS_DUMMY_MODE) {
       endpoint += '/dummy';
     }
     const url = `${this.fastApiUrl}${endpoint}`;
@@ -119,10 +122,9 @@ export class AIService {
   async createVideo(
     request: CreateVideoRequest,
     mode: 'full' | 'simple' = 'simple',
-    dummy: boolean = false,
   ): Promise<CreateVideoResponse> {
     let endpoint = mode === 'full' ? '/video/create' : '/video/create-simple';
-    if (dummy) {
+    if (this.IS_DUMMY_MODE) {
       endpoint += '/dummy';
     }
     const url = `${this.fastApiUrl}${endpoint}`;

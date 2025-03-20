@@ -9,7 +9,7 @@ import { TTSProvider } from '@prisma/client';
 export class CreateAudioDto {
   @IsString()
   @IsNotEmpty()
-  script: string;
+  scriptId: string;
 
   // Optional provider, defaults to 'openai'
   @IsOptional()

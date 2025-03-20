@@ -76,9 +76,8 @@ model Script {
   deletedAt DateTime?
 
   // Optional one-to-one relation to a generated video asset
-  video   Video?  @relation("ScriptVideo")
-  videoId String? @unique
-  Audio   Audio[]
+  video Video?
+  Audio Audio[]
 }
 
 model Video {
@@ -86,7 +85,7 @@ model Video {
   user         User        @relation(fields: [userId], references: [id])
   userId       String
   // Relation to the script that generated this video (if any)
-  script       Script?     @relation("ScriptVideo", fields: [id], references: [videoId])
+  script       Script?     @relation(fields: [scriptId], references: [id])
   scriptId     String?     @unique
   status       VideoStatus
   url          String? // Completed video URL (generalized)

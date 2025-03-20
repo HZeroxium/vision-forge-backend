@@ -13,12 +13,14 @@ import { UpdateAudioDto } from './dto/update-audio.dto';
 import { AudioResponseDto } from './dto/audio-response.dto';
 import { AudiosPaginationDto } from './dto/audios-pagination.dto';
 import { TTSProvider } from '@prisma/client';
+import { ScriptsService } from '../scripts/scripts.service';
 
 @Injectable()
 export class AudiosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
+    private readonly scriptsService: ScriptsService,
   ) {}
 
   mapAudioToResponse(audio: any): AudioResponseDto {
@@ -44,19 +46,17 @@ export class AudiosService {
     createAudioDto: CreateAudioDto,
     userId: string,
   ): Promise<AudioResponseDto> {
-    const { script, provider } = createAudioDto;
-    if (!script) {
+    const { scriptId, provider } = createAudioDto;
+    if (!scriptId) {
       throw new BadRequestException('Script is required.');
     }
 
+    const _script = await this.scriptsService.findOne(scriptId);
+    const script = _script.content;
     // Call AIService to generate audio (using dummy endpoint for testing)
     let generatedAudio;
     try {
-      generatedAudio = await this.aiService.createAudio(
-        { script },
-        provider,
-        true,
-      );
+      generatedAudio = await this.aiService.createAudio({ script }, provider);
     } catch (error) {
       throw new HttpException(
         {
@@ -74,11 +74,12 @@ export class AudiosService {
       newAudio = await this.prisma.audio.create({
         data: {
           userId,
+          scriptId,
           provider: provider || TTSProvider.OPENAI,
           // voiceParams can be extended later (set as empty JSON for now)
           voiceParams: {},
           url: generatedAudio.audio_url,
-          durationSeconds: generatedAudio.duration, // Ideally, duration should be determined by another process.
+          durationSeconds: generatedAudio.audio_duration, // Ideally, duration should be determined by another process.
         },
       });
     } catch (dbError) {
@@ -150,10 +151,9 @@ export class AudiosService {
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${id} not found.`);
     }
-    const { script, ...updateData } = updateAudioDto;
     const updatedAudio = await this.prisma.audio.update({
       where: { id },
-      data: updateData,
+      data: updateAudioDto,
     });
     return this.mapAudioToResponse(updatedAudio);
   }

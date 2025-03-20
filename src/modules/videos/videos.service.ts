@@ -12,12 +12,16 @@ import { PrismaService } from 'src/database/prisma.service';
 import { AIService } from 'src/ai/ai.service';
 import { VideoResponseDto } from './dto/video-response.dto';
 import { VideosPaginationDto } from './dto/videos-pagination.dto';
+import { VideoStatus } from '@prisma/client';
+import { CreateVideoResponse } from 'src/ai/dto/fastapi.dto';
+import { AppLoggerService } from 'src/common/logger/logger.service';
 
 @Injectable()
 export class VideosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
+    private readonly logger: AppLoggerService,
   ) {}
   mapVideoToResponse(video: any): VideoResponseDto {
     return {
@@ -42,13 +46,17 @@ export class VideosService {
     createVideoDto: CreateVideoDto,
     userId: string,
   ): Promise<VideoResponseDto> {
-    const { imageUrls, audioUrl, transitionDuration } = createVideoDto;
-    if (!imageUrls || imageUrls.length === 0 || !audioUrl) {
+    const { imageUrls, audioUrl, transitionDuration, scriptId } =
+      createVideoDto;
+    if (!imageUrls || imageUrls.length === 0 || !audioUrl || !scriptId) {
       throw new BadRequestException('Image URLs and audio URL are required.');
     }
 
+    this.logger.log(`Creating video for user ${userId}`);
+    this.logger.log(`Script ID: ${scriptId}`);
+
     // Call AIService to generate the video (using dummy endpoint for testing)
-    let generatedVideo;
+    let generatedVideo: CreateVideoResponse;
     try {
       // Choose the video generation mode: 'simple' or 'full'
       generatedVideo = await this.aiService.createVideo(
@@ -58,7 +66,6 @@ export class VideosService {
           transition_duration: transitionDuration,
         },
         'simple', // For this example, we use 'simple' mode (slideshow)
-        true,
       );
     } catch (error) {
       throw new HttpException(
@@ -77,7 +84,8 @@ export class VideosService {
       newVideo = await this.prisma.video.create({
         data: {
           userId,
-          status: 'COMPLETED', // Assuming video generation is complete
+          scriptId,
+          status: VideoStatus.COMPLETED, // Assuming video generation is complete
           url: generatedVideo.video_url,
           // thumbnailUrl can be set later if available.
         },

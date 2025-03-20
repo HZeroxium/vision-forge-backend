@@ -34,7 +34,7 @@ export interface CreateAudioRequest {
 
 export interface CreateAudioResponse {
   audio_url: string;
-  duration: number;
+  audio_duration: number;
 }
 
 export interface CreateVideoRequest {
