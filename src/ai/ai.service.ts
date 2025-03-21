@@ -38,6 +38,7 @@ export class AIService {
       this.configService.get<string>('fastAPI.isDummyMode', 'false') === 'true';
 
     this.logger.debug(`FastAPI URL: ${this.fastApiUrl}`);
+    this.logger.debug(`IS_DUMMY_MODE: ${this.IS_DUMMY_MODE}`);
   }
 
   /**
@@ -124,9 +125,9 @@ export class AIService {
     mode: 'full' | 'simple' = 'simple',
   ): Promise<CreateVideoResponse> {
     let endpoint = mode === 'full' ? '/video/create' : '/video/create-simple';
-    if (this.IS_DUMMY_MODE) {
-      endpoint += '/dummy';
-    }
+    // if (this.IS_DUMMY_MODE) {
+    //   endpoint += '/dummy';
+    // }
     const url = `${this.fastApiUrl}${endpoint}`;
     this.logger.log(`Calling FastAPI create video at ${url}`);
     const response = await lastValueFrom(

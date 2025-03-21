@@ -16,7 +16,7 @@ import aiConfig from './config/ai.config';
 import { ImagesModule } from './modules/images/images.module';
 import { AudiosModule } from './modules/audios/audios.module';
 import { VideosModule } from './modules/videos/videos.module';
-
+import { FlowModule } from './modules/flow/flow.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -29,6 +29,7 @@ import { VideosModule } from './modules/videos/videos.module';
     ImagesModule,
     AudiosModule,
     VideosModule,
+    FlowModule,
     PublisherModule,
   ],
   controllers: [AppController],

@@ -7,7 +7,7 @@ export class VideoResponseDto {
   userId: string;
   scriptId?: string;
   status: string;
-  url?: string;
+  url: string;
   thumbnailUrl?: string;
   createdAt: Date;
   updatedAt: Date;
