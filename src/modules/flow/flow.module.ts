@@ -2,14 +2,14 @@
 import { Module } from '@nestjs/common';
 import { FlowService } from './flow.service';
 import { FlowController } from './flow.controller';
-import { ScriptsModule } from 'src/modules/scripts/scripts.module';
-import { AudiosModule } from 'src/modules/audios/audios.module';
-import { ImagesModule } from 'src/modules/images/images.module';
-import { VideosModule } from 'src/modules/videos/videos.module';
-import { AIModule } from 'src/ai/ai.module';
+import { ScriptsModule } from '@scripts/scripts.module';
+import { AudiosModule } from '@audios/audios.module';
+import { ImagesModule } from '@images/images.module';
+import { VideosModule } from '@videos/videos.module';
+import { AIModule } from '@ai/ai.module';
 import { ConfigModule } from '@nestjs/config';
-import { PrismaService } from 'src/database/prisma.service';
-import { ScriptsService } from '../scripts/scripts.service';
+import { PrismaService } from '@database/prisma.service';
+import { ScriptsService } from '@scripts/scripts.service';
 
 @Module({
   imports: [

@@ -16,7 +16,7 @@ import { CreateImageDto } from './dto/create-image.dto';
 import { UpdateImageDto } from './dto/update-image.dto';
 import { ImageResponseDto } from './dto/image-response.dto';
 import { ImagesPaginationDto } from './dto/images-pagination.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 
 @Controller('images')
 export class ImagesController {

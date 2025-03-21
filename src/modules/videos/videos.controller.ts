@@ -16,7 +16,7 @@ import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
 import { VideoResponseDto } from './dto/video-response.dto';
 import { VideosPaginationDto } from './dto/videos-pagination.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 
 @Controller('videos')
 export class VideosController {

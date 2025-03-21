@@ -20,16 +20,16 @@
     "logger": "queue",
     "exceptions": "error",
     "interceptors": "queue",
-    "migrations": "database",
+    "migrations": "database"
   },
   "material-icon-theme.folders.customClones": [
-  {
-    "name": "users-admin",
-    "base": "admin",
-    "color": "light-green-500",
-    "lightColor": "light-green-700",
-    "folderNames": ["users"],
-    "rootFolderNames": ["users"]
-  },
-]
+    {
+      "name": "users-admin",
+      "base": "admin",
+      "color": "light-green-500",
+      "lightColor": "light-green-700",
+      "folderNames": ["users"],
+      "rootFolderNames": ["users"]
+    }
+  ]
 }

@@ -6,14 +6,14 @@ import {
   HttpStatus,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/database/prisma.service';
-import { AIService } from 'src/ai/ai.service';
+import { PrismaService } from '@database/prisma.service';
+import { AIService } from '@ai/ai.service';
 import { CreateAudioDto } from './dto/create-audio.dto';
 import { UpdateAudioDto } from './dto/update-audio.dto';
 import { AudioResponseDto } from './dto/audio-response.dto';
 import { AudiosPaginationDto } from './dto/audios-pagination.dto';
 import { TTSProvider } from '@prisma/client';
-import { ScriptsService } from '../scripts/scripts.service';
+import { ScriptsService } from '@scripts/scripts.service';
 
 @Injectable()
 export class AudiosService {

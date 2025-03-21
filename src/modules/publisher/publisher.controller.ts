@@ -17,7 +17,7 @@ import { PublishVideoDto } from './dto/publish-video.dto';
 import { UpdatePublisherDto } from './dto/update-publisher.dto';
 import { PublisherResponseDto } from './dto/publisher-response.dto';
 import { PublisherPaginationDto } from './dto/publisher-pagination.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 
 @Controller('publisher')
 export class PublisherController {

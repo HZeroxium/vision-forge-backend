@@ -8,18 +8,17 @@ import {
 } from '@nestjs/common';
 import { CreateScriptDto } from './dto/create-script.dto';
 import { UpdateScriptDto } from './dto/update-script.dto';
-import { PrismaService } from 'src/database/prisma.service';
+import { PrismaService } from '@database/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ScriptsPaginationDto } from './dto/scripts-pagination.dto';
 import { mapScriptToResponse } from './utils';
 import { ScriptResponseDto } from './dto/script-response.dto';
-import { AppLoggerService } from 'src/common/logger/logger.service';
-import { AIService } from 'src/ai/ai.service';
+import { AppLoggerService } from '@common/logger/logger.service';
+import { AIService } from '@ai/ai.service';
 import {
-  CreateImagePromptsRequest,
   CreateImagePromptsResponse,
   CreateScriptResponse,
-} from 'src/ai/dto/fastapi.dto';
+} from '@ai/dto/fastapi.dto';
 import { CreateImagePromptsDto } from './dto/create-image-prompts.dto';
 
 @Injectable()

@@ -8,13 +8,13 @@ import {
 } from '@nestjs/common';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
-import { PrismaService } from 'src/database/prisma.service';
-import { AIService } from 'src/ai/ai.service';
+import { PrismaService } from '@database/prisma.service';
+import { AIService } from '@ai/ai.service';
 import { VideoResponseDto } from './dto/video-response.dto';
 import { VideosPaginationDto } from './dto/videos-pagination.dto';
 import { VideoStatus } from '@prisma/client';
 import { CreateVideoResponse } from 'src/ai/dto/fastapi.dto';
-import { AppLoggerService } from 'src/common/logger/logger.service';
+import { AppLoggerService } from '@common/logger/logger.service';
 
 @Injectable()
 export class VideosService {

@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { CreateImageDto } from './dto/create-image.dto';
 import { UpdateImageDto } from './dto/update-image.dto';
-import { PrismaService } from 'src/database/prisma.service';
-import { AIService } from 'src/ai/ai.service';
+import { PrismaService } from '@database/prisma.service';
+import { AIService } from '@ai/ai.service';
 import { ImageResponseDto } from './dto/image-response.dto';
 import { ImagesPaginationDto } from './dto/images-pagination.dto';
 import { mapImageToResponse } from './utils';

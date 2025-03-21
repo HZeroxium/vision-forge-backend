@@ -16,7 +16,7 @@ import { CreateAudioDto } from './dto/create-audio.dto';
 import { UpdateAudioDto } from './dto/update-audio.dto';
 import { AudioResponseDto } from './dto/audio-response.dto';
 import { AudiosPaginationDto } from './dto/audios-pagination.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 
 @Controller('audios')
 export class AudiosController {

@@ -5,17 +5,17 @@ import {
   HttpStatus,
   NotFoundException,
 } from '@nestjs/common';
-import { ScriptsService } from 'src/modules/scripts/scripts.service';
-import { AudiosService } from 'src/modules/audios/audios.service';
-import { ImagesService } from 'src/modules/images/images.service';
-import { VideosService } from 'src/modules/videos/videos.service';
+import { ScriptsService } from '@scripts/scripts.service';
+import { AudiosService } from '@audios/audios.service';
+import { ImagesService } from '@images/images.service';
+import { VideosService } from '@videos/videos.service';
 import { GenerateVideoFlowDto } from './dto/generate-video.dto';
-import { CreateAudioDto } from 'src/modules/audios/dto/create-audio.dto';
-import { CreateVideoDto } from 'src/modules/videos/dto/create-video.dto';
-import { CreateImagePromptsDto } from 'src/modules/scripts/dto/create-image-prompts.dto';
-import { AIService } from 'src/ai/ai.service';
-import { AppLoggerService } from 'src/common/logger/logger.service';
-import { VideoResponseDto } from 'src/modules/videos/dto/video-response.dto';
+import { CreateAudioDto } from '@audios/dto/create-audio.dto';
+import { CreateVideoDto } from '@videos/dto/create-video.dto';
+import { CreateImagePromptsDto } from '@scripts/dto/create-image-prompts.dto';
+import { AIService } from '@ai/ai.service';
+import { AppLoggerService } from '@common/logger/logger.service';
+import { VideoResponseDto } from '@videos/dto/video-response.dto';
 
 @Injectable()
 export class FlowService {

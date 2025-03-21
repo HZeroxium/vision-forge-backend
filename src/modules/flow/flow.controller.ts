@@ -2,8 +2,8 @@
 import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { FlowService } from './flow.service';
 import { GenerateVideoFlowDto } from './dto/generate-video.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { VideoResponseDto } from '../videos/dto/video-response.dto';
+import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
+import { VideoResponseDto } from '@videos/dto/video-response.dto';
 
 @Controller('flow')
 export class FlowController {

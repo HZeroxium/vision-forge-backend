@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { PublishVideoDto } from './dto/publish-video.dto';
 import { UpdatePublisherDto } from './dto/update-publisher.dto';
-import { PrismaService } from '../../database/prisma.service';
+import { PrismaService } from '@database/prisma.service';
 import { PublisherResponseDto } from './dto/publisher-response.dto';
 import { PublisherPaginationDto } from './dto/publisher-pagination.dto';
 import { HttpService } from '@nestjs/axios';
