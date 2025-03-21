@@ -3,15 +3,33 @@
     "**/.git": true,
     "**/.svn": true,
     "**/.hg": true,
-    "**/CVS": true,
     "**/.DS_Store": true,
-    "**/Thumbs.db": true
+    "**/Thumbs.db": true,
+    "**/CVS": true
   },
   "hide-files.files": [],
   "material-icon-theme.files.associations": {
     "**.entity.ts": "database",
     "**.service.ts": "angular",
     "**.module.ts": "nest",
-    "**.dto.ts": "",
+    "**.dto.ts": "scheme",
+    "**.config.ts": "nix"
   },
+  "material-icon-theme.folders.associations": {
+    "gpt": "admin",
+    "logger": "queue",
+    "exceptions": "error",
+    "interceptors": "queue",
+    "migrations": "database"
+  },
+  "material-icon-theme.folders.customClones": [
+    {
+      "name": "users-admin",
+      "base": "admin",
+      "color": "light-green-500",
+      "lightColor": "light-green-700",
+      "folderNames": ["users"],
+      "rootFolderNames": ["users"]
+    }
+  ]
 }

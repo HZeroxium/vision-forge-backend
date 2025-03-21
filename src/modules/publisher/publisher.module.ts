@@ -5,7 +5,7 @@ import { PublisherService } from './publisher.service';
 import { PublisherController } from './publisher.controller';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
-import { DatabaseModule } from '../../database/database.module';
+import { DatabaseModule } from '@database/database.module';
 
 @Module({
   imports: [

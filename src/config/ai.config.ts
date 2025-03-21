@@ -25,4 +25,8 @@ export default () => ({
       height: parseInt(process.env.HUGGINGFACE_IMAGE_HEIGHT ?? '512'),
     },
   },
+  fastAPI: {
+    url: process.env.FASTAPI_URL || 'http://127.0.0.1:8000',
+    isDummyMode: process.env.IS_DUMMY_MODE || false,
+  },
 });

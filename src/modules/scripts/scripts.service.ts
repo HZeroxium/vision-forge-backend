@@ -8,93 +8,61 @@ import {
 } from '@nestjs/common';
 import { CreateScriptDto } from './dto/create-script.dto';
 import { UpdateScriptDto } from './dto/update-script.dto';
-import { HfInference } from '@huggingface/inference';
-import { PrismaService } from 'src/database/prisma.service';
+import { PrismaService } from '@database/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ScriptsPaginationDto } from './dto/scripts-pagination.dto';
 import { mapScriptToResponse } from './utils';
 import { ScriptResponseDto } from './dto/script-response.dto';
+import { AppLoggerService } from '@common/logger/logger.service';
+import { AIService } from '@ai/ai.service';
 import {
-  generateScriptMessages,
-  summarizeScriptToImagePrompts,
-} from 'src/common/utils/ai.util';
-import { AppLoggerService } from 'src/common/logger/logger.service';
+  CreateImagePromptsResponse,
+  CreateScriptResponse,
+} from '@ai/dto/fastapi.dto';
+import { CreateImagePromptsDto } from './dto/create-image-prompts.dto';
 
 @Injectable()
 export class ScriptsService {
-  private readonly hfClient: HfInference;
   private readonly logger = new AppLoggerService();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-  ) {
-    const hfApiKey = this.configService.get<string>('huggingFace.apiKey');
-    this.hfClient = new HfInference(hfApiKey);
-  }
+    private readonly aiService: AIService,
+  ) {}
 
+  /**
+   * Create a new script by calling AIService to generate content, then saving into DB.
+   */
   async createScript(
     createScriptDto: CreateScriptDto,
     userId: string,
   ): Promise<ScriptResponseDto> {
-    const { rawContent, style, title } = createScriptDto;
-    if (!rawContent || !style) {
-      throw new BadRequestException('Raw content and style are required.');
+    const { title, style } = createScriptDto;
+    if (!title || !style) {
+      throw new BadRequestException('Title and style are required.');
     }
-
-    const language = 'Vietnamese';
-    const maxTokens = this.configService.get<number>(
-      'huggingFace.textGeneration.maxTokens',
-    )!;
-    const messages = generateScriptMessages(
-      rawContent,
-      style,
-      language,
-      maxTokens,
-    );
-    let generatedScript = '';
-
+    let generatedScript: CreateScriptResponse;
     try {
-      const stream = this.hfClient.chatCompletionStream({
-        model: this.configService.get<string>(
-          'huggingFace.textGeneration.model',
-        ),
-        messages,
-        temperature: this.configService.get<number>(
-          'huggingFace.textGeneration.temperature',
-        ),
-        max_tokens: this.configService.get<number>(
-          'huggingFace.textGeneration.maxTokens',
-        ),
-        top_p: this.configService.get<number>(
-          'huggingFace.textGeneration.topP',
-        ),
-      });
-
-      for await (const chunk of stream) {
-        if (chunk.choices?.length > 0) {
-          generatedScript += chunk.choices[0].delta.content;
-        }
-      }
+      // Call AIService to generate the script (using dummy endpoint for testing)
+      generatedScript = await this.aiService.createScript({ title, style });
     } catch (error) {
       throw new HttpException(
         {
-          errorCode: 'HF_API_ERROR',
-          message:
-            'Failed to generate script content due to external API error.',
-          details: error.response?.data || error.message,
+          errorCode: 'AI_ERROR',
+          message: 'Failed to generate script content from AI provider.',
+          details: error.message,
         },
         HttpStatus.BAD_GATEWAY,
       );
     }
 
-    // Save the generated script into your database.
     try {
       const newScript = await this.prisma.script.create({
         data: {
           userId,
-          title: title || 'Untitled Script',
-          content: generatedScript,
+          title,
+          content: generatedScript.content,
           style,
         },
       });
@@ -107,6 +75,26 @@ export class ScriptsService {
           details: dbError.message,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Generate image prompts from script content via AIService.
+   */
+  async createImagePrompts(
+    createImagePromptsDto: CreateImagePromptsDto,
+  ): Promise<CreateImagePromptsResponse> {
+    try {
+      return await this.aiService.createImagePrompts(createImagePromptsDto);
+    } catch (error) {
+      throw new HttpException(
+        {
+          errorCode: 'AI_ERROR',
+          message: 'Failed to generate image prompts.',
+          details: error.message,
+        },
+        HttpStatus.BAD_GATEWAY,
       );
     }
   }
@@ -173,73 +161,5 @@ export class ScriptsService {
       data: { deletedAt: new Date() },
     });
     return mapScriptToResponse(deletedScript);
-  }
-
-  // Function to summarize the generated script into multiple image prompts.
-  async summarizeScriptForImages(
-    scriptContent: string,
-    numPrompts: string,
-  ): Promise<Object> {
-    this.logger.log('Summarize script for image prompts');
-    this.logger.log(scriptContent);
-    const language = 'Vietnamese';
-    // Use the same style as the script (or allow a different one if needed)
-    const style = 'phổ thông';
-    const maxTokens = this.configService.get<number>(
-      'huggingFace.textGeneration.maxTokens',
-    )!;
-    const messages = summarizeScriptToImagePrompts(
-      scriptContent,
-      language,
-      style,
-      maxTokens,
-      Number(numPrompts),
-    );
-    let summarizedPrompts = '';
-
-    try {
-      const stream = this.hfClient.chatCompletionStream({
-        model: this.configService.get<string>(
-          'huggingFace.textGeneration.model',
-        ),
-        messages,
-        temperature: this.configService.get<number>(
-          'huggingFace.textGeneration.temperature',
-        ),
-        max_tokens: this.configService.get<number>(
-          'huggingFace.textGeneration.maxTokens',
-        ),
-        top_p: this.configService.get<number>(
-          'huggingFace.textGeneration.topP',
-        ),
-      });
-
-      for await (const chunk of stream) {
-        if (chunk.choices?.length > 0) {
-          summarizedPrompts += chunk.choices[0].delta.content;
-        }
-      }
-    } catch (error) {
-      throw new HttpException(
-        {
-          errorCode: 'HF_API_ERROR',
-          message: 'Failed to summarize script for image prompts.',
-          details: error.response?.data || error.message,
-        },
-        HttpStatus.BAD_GATEWAY,
-      );
-    }
-
-    // Assume that the summarized result contains multiple prompts separated by newline.
-    // You can customize the splitting logic as needed.
-    const promptsArray = summarizedPrompts
-      .split('\n')
-      .map((prompt) => prompt.trim())
-      .filter((prompt) => prompt);
-    return {
-      count: promptsArray.length,
-      prompts: promptsArray,
-      summarizedPrompts,
-    };
   }
 }

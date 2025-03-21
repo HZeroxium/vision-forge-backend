@@ -6,13 +6,13 @@ import { AuthController } from './auth.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import jwtConfig from '../../config/jwt.config';
+import jwtConfig from '@config/jwt.config';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 // import { GoogleStrategy } from './strategies/google.strategy';
-import { DatabaseModule } from '../../database/database.module';
-import { UsersModule } from '../users/users.module';
-import { AuthGuard } from 'src/common/guards/auth.guard';
+import { DatabaseModule } from '@database/database.module';
+import { UsersModule } from '@users/users.module';
+import { AuthGuard } from '@common/guards/auth.guard';
 
 @Module({
   imports: [

@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { PublishVideoDto } from './dto/publish-video.dto';
 import { UpdatePublisherDto } from './dto/update-publisher.dto';
-import { PrismaService } from '../../database/prisma.service';
+import { PrismaService } from '@database/prisma.service';
 import { PublisherResponseDto } from './dto/publisher-response.dto';
 import { PublisherPaginationDto } from './dto/publisher-pagination.dto';
 import { HttpService } from '@nestjs/axios';
@@ -50,7 +50,7 @@ export class PublisherService {
       where: { id: videoId },
     });
 
-    if (!videoRecord || !videoRecord.finalS3Url) {
+    if (!videoRecord || !videoRecord.url) {
       throw new HttpException(
         'Video not found or not completed',
         HttpStatus.BAD_REQUEST,
@@ -81,7 +81,7 @@ export class PublisherService {
               },
               media: {
                 // TODO: Replace with actual file stream if required
-                body: videoRecord.finalS3Url,
+                body: videoRecord.url,
               },
             },
             {
