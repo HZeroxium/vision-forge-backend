@@ -25,15 +25,15 @@ export class UsersController {
 
   @Get()
   findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+    @Query('page', new ParseIntPipe()) page: number = 1,
+    @Query('limit', new ParseIntPipe()) limit: number = 10,
     @Query('order') order: 'asc' | 'desc' = 'asc',
   ): Promise<UsersPaginationDto> {
     return this.usersService.findAll(page, limit, order);
   }
 
   @Get(':id')
-  findById(@Param('id', ParseIntPipe) id: string): Promise<UserResponseDto> {
+  findById(@Param('id') id: string): Promise<UserResponseDto> {
     return this.usersService.findById(id);
   }
 
@@ -43,15 +43,12 @@ export class UsersController {
   }
 
   @Put(':id')
-  update(
-    @Param('id', ParseIntPipe) id: string,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
+  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
-  delete(@Param('id', ParseIntPipe) id: string) {
+  delete(@Param('id') id: string) {
     return this.usersService.delete(id);
   }
 }

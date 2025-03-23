@@ -11,6 +11,8 @@ import {
   UseGuards,
   Req,
   Query,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { PublisherService } from './publisher.service';
 import { PublishVideoDto } from './dto/publish-video.dto';
@@ -36,8 +38,10 @@ export class PublisherController {
   @UseGuards(JwtAuthGuard)
   @Get()
   async findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+    @Query('page', new DefaultValuePipe(1), new ParseIntPipe())
+    page: number = 1,
+    @Query('limit', new DefaultValuePipe(10), new ParseIntPipe())
+    limit: number = 10,
   ): Promise<PublisherPaginationDto> {
     return this.publisherService.findAll(page, limit);
   }

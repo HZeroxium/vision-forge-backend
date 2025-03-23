@@ -17,11 +17,18 @@ import { ImagesModule } from '@images/images.module';
 import { AudiosModule } from '@audios/audios.module';
 import { VideosModule } from '@videos/videos.module';
 import { FlowModule } from '@flow/flow.module';
+import { BullModule } from '@nestjs/bull';
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig, swaggerConfig, aiConfig],
+    }),
+    BullModule.forRoot({
+      redis: {
+        host: 'localhost',
+        port: 6379,
+      },
     }),
     AuthModule,
     UsersModule,

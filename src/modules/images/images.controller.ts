@@ -10,6 +10,8 @@ import {
   Query,
   UseGuards,
   Req,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { ImagesService } from './images.service';
 import { CreateImageDto } from './dto/create-image.dto';
@@ -40,8 +42,10 @@ export class ImagesController {
    */
   @Get()
   async findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+    @Query('page', new DefaultValuePipe(1), new ParseIntPipe())
+    page: number = 1,
+    @Query('limit', new DefaultValuePipe(10), new ParseIntPipe())
+    limit: number = 10,
   ): Promise<ImagesPaginationDto> {
     return this.imagesService.findAll(page, limit);
   }

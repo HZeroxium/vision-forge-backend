@@ -10,6 +10,8 @@ import { AIModule } from '@ai/ai.module';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaService } from '@database/prisma.service';
 import { ScriptsService } from '@scripts/scripts.service';
+import { BullModule } from '@nestjs/bull';
+import { FlowProcessor } from './flow.processor';
 
 @Module({
   imports: [
@@ -19,9 +21,21 @@ import { ScriptsService } from '@scripts/scripts.service';
     AudiosModule,
     ImagesModule,
     VideosModule,
+    BullModule.registerQueue({
+      name: 'video-generation',
+      defaultJobOptions: {
+        attempts: 3, // 🔁 Retry 3 times
+        backoff: {
+          type: 'exponential',
+          delay: 5000, // Wait 5s, 10s, 20s...
+        },
+        removeOnComplete: true,
+        removeOnFail: false, // Keep failed jobs for inspection
+      },
+    }),
   ],
   controllers: [FlowController],
-  providers: [FlowService, PrismaService, ScriptsService],
+  providers: [FlowService, PrismaService, ScriptsService, FlowProcessor],
   exports: [FlowService],
 })
 export class FlowModule {}

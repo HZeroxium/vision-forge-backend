@@ -6,6 +6,11 @@ import { HttpExceptionFilter } from './common/exceptions/http-exception.filter';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import 'dotenv/config';
 import { AppLoggerService } from './common/logger/logger.service';
+import { createBullBoard } from '@bull-board/api';
+import { BullAdapter } from '@bull-board/api/bullAdapter';
+import { ExpressAdapter } from '@bull-board/express';
+import { Queue } from 'bull';
+import { getQueueToken } from '@nestjs/bull';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -25,6 +30,7 @@ async function bootstrap() {
   // Enable CORS
   if (configService.get<boolean>('cors.enabled')) {
     app.enableCors({ origin: configService.get<string>('cors.origin') });
+    loggerService.log('✅ CORS enabled');
   }
 
   // Swagger
@@ -44,6 +50,19 @@ async function bootstrap() {
   // Start server
   const PORT = configService.get<number>('port')!;
   loggerService.log(`Server running on port ${PORT}`);
+
+  // Bull Board
+  const serverAdapter = new ExpressAdapter();
+  serverAdapter.setBasePath('/admin/queues');
+
+  const videoQueue = app.get<Queue>(getQueueToken('video-generation'));
+
+  createBullBoard({
+    queues: [new BullAdapter(videoQueue)],
+    serverAdapter,
+  });
+
+  app.use('/admin/queues', serverAdapter.getRouter());
 
   await app.listen(PORT);
 }

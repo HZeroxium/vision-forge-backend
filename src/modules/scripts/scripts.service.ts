@@ -103,8 +103,6 @@ export class ScriptsService {
     page: number = 1,
     limit: number = 10,
   ): Promise<ScriptsPaginationDto> {
-    page = parseInt(page.toString(), 10);
-    limit = parseInt(limit.toString(), 10);
     const skip = (page - 1) * limit;
     const [scripts, totalCount] = await this.prisma.$transaction([
       this.prisma.script.findMany({
