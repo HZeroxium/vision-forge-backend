@@ -10,6 +10,7 @@ import {
   Query,
   UseGuards,
   Req,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { AudiosService } from './audios.service';
 import { CreateAudioDto } from './dto/create-audio.dto';
@@ -40,8 +41,8 @@ export class AudiosController {
    */
   @Get()
   async findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+    @Query('page', new ParseIntPipe()) page: number = 1,
+    @Query('limit', new ParseIntPipe()) limit: number = 10,
   ): Promise<AudiosPaginationDto> {
     return this.audiosService.findAll(page, limit);
   }

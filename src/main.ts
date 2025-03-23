@@ -25,6 +25,7 @@ async function bootstrap() {
   // Enable CORS
   if (configService.get<boolean>('cors.enabled')) {
     app.enableCors({ origin: configService.get<string>('cors.origin') });
+    loggerService.log('✅ CORS enabled');
   }
 
   // Swagger
