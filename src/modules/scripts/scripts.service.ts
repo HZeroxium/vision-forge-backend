@@ -19,15 +19,19 @@ import {
   CreateScriptResponse,
 } from '@ai/dto/fastapi.dto';
 import { CreateImagePromptsDto } from './dto/create-image-prompts.dto';
+import { CacheService } from '@/common/cache/cache.service';
+import { generateCacheKey } from '@/common/cache/utils';
 
 @Injectable()
 export class ScriptsService {
-  private readonly logger = new AppLoggerService();
+  private readonly logger = this.appLogger;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly aiService: AIService,
+    private readonly cacheService: CacheService,
+    private readonly appLogger: AppLoggerService,
   ) {}
 
   mapScriptToResponse = (script: any): ScriptResponseDto => {
@@ -52,19 +56,39 @@ export class ScriptsService {
     if (!title || !style) {
       throw new BadRequestException('Title and style are required.');
     }
-    let generatedScript: CreateScriptResponse;
-    try {
-      // Call AIService to generate the script (using dummy endpoint for testing)
-      generatedScript = await this.aiService.createScript({ title, style });
-    } catch (error) {
-      throw new HttpException(
-        {
-          errorCode: 'AI_ERROR',
-          message: 'Failed to generate script content from AI provider.',
-          details: error.message,
-        },
-        HttpStatus.BAD_GATEWAY,
+
+    // Build a cache key (lowercase trimmed title and style)
+    const cacheKey = generateCacheKey([
+      'scripts',
+      'ai',
+      title.trim().toLowerCase(),
+      style.trim().toLowerCase(),
+    ]);
+
+    let generatedScript: CreateScriptResponse | null = null;
+    // Check cache first
+    const cachedContent = await this.cacheService.getCache(cacheKey);
+    if (cachedContent) {
+      this.logger.log(`Cache hit for key: ${cacheKey}`);
+      generatedScript = { content: cachedContent };
+    } else {
+      this.logger.log(
+        `Cache miss for key: ${cacheKey}. Calling AIService to generate script.`,
       );
+      try {
+        generatedScript = await this.aiService.createScript({ title, style });
+        // Cache the result; TTL can be set in config (default provided)
+        await this.cacheService.setCache(cacheKey, generatedScript.content);
+      } catch (error) {
+        throw new HttpException(
+          {
+            errorCode: 'AI_ERROR',
+            message: 'Failed to generate script content from AI provider.',
+            details: error.message,
+          },
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
     }
 
     try {
@@ -76,6 +100,14 @@ export class ScriptsService {
           style,
         },
       });
+      // Invalidate relevant cache keys after creation
+      // Invalidate cache for individual script and common pagination keys.
+      await this.cacheService.deleteCache(
+        generateCacheKey(['scripts', 'findOne', newScript.id]),
+      );
+      await this.cacheService.deleteCache(
+        generateCacheKey(['scripts', 'findAll', '1', '10']),
+      );
       return this.mapScriptToResponse(newScript);
     } catch (dbError) {
       throw new HttpException(
@@ -113,6 +145,18 @@ export class ScriptsService {
     page: number = 1,
     limit: number = 10,
   ): Promise<ScriptsPaginationDto> {
+    const cacheKey = generateCacheKey([
+      'scripts',
+      'findAll',
+      page.toString(),
+      limit.toString(),
+    ]);
+    const cached = await this.cacheService.getCache(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit for key: ${cacheKey}`);
+      return JSON.parse(cached);
+    }
+
     const skip = (page - 1) * limit;
     const [scripts, totalCount] = await this.prisma.$transaction([
       this.prisma.script.findMany({
@@ -127,17 +171,33 @@ export class ScriptsService {
     const scriptResponses = scripts.map((script) =>
       this.mapScriptToResponse(script),
     );
-    return { totalCount, page, limit, totalPages, scripts: scriptResponses };
+    const result: ScriptsPaginationDto = {
+      totalCount,
+      page,
+      limit,
+      totalPages,
+      scripts: scriptResponses,
+    };
+    await this.cacheService.setCache(cacheKey, JSON.stringify(result));
+    return result;
   }
 
   async findOne(id: string): Promise<ScriptResponseDto> {
+    const cacheKey = generateCacheKey(['scripts', 'findOne', id]);
+    const cached = await this.cacheService.getCache(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit for key: ${cacheKey}`);
+      return JSON.parse(cached);
+    }
     const script = await this.prisma.script.findUnique({
       where: { id, deletedAt: null },
     });
     if (!script) {
       throw new NotFoundException(`Script with ID ${id} not found`);
     }
-    return this.mapScriptToResponse(script);
+    const response = this.mapScriptToResponse(script);
+    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+    return response;
   }
 
   async update(
@@ -154,6 +214,13 @@ export class ScriptsService {
       where: { id },
       data: updateScriptDto,
     });
+    // Invalidate cache for this script and general pagination.
+    await this.cacheService.deleteCache(
+      generateCacheKey(['scripts', 'findOne', id]),
+    );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['scripts', 'findAll', '1', '10']),
+    );
     return this.mapScriptToResponse(updatedScript);
   }
 
@@ -168,6 +235,13 @@ export class ScriptsService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+    // Invalidate cache for this script and general pagination.
+    await this.cacheService.deleteCache(
+      generateCacheKey(['scripts', 'findOne', id]),
+    );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['scripts', 'findAll', '1', '10']),
+    );
     return this.mapScriptToResponse(deletedScript);
   }
 }

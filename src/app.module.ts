@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import appConfig from '@config/app.config';
 import swaggerConfig from '@config/swagger.config';
 import aiConfig from '@config/ai.config';
+import cacheConfig from '@config/redis.config';
 import { AppLoggerService } from '@common/logger/logger.service';
 import { LoggingInterceptor } from '@common/interceptors/logging.interceptor';
 import { AuthModule } from '@auth/auth.module';
@@ -22,7 +23,7 @@ import { BullModule } from '@nestjs/bull';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, swaggerConfig, aiConfig],
+      load: [appConfig, swaggerConfig, aiConfig, cacheConfig],
     }),
     BullModule.forRoot({
       redis: {
