@@ -28,7 +28,6 @@ export class ScriptsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService,
     private readonly aiService: AIService,
     private readonly cacheService: CacheService,
     private readonly appLogger: AppLoggerService,

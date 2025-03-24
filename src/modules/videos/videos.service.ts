@@ -1,4 +1,5 @@
-// src/videos/videos.service.ts
+// modules/videos/videos.service.ts
+
 import {
   Injectable,
   BadRequestException,
@@ -15,6 +16,8 @@ import { VideosPaginationDto } from './dto/videos-pagination.dto';
 import { VideoStatus } from '@prisma/client';
 import { CreateVideoResponse } from 'src/ai/dto/fastapi.dto';
 import { AppLoggerService } from '@common/logger/logger.service';
+import { CacheService } from '@/common/cache/cache.service';
+import { generateCacheKey } from '@/common/cache/utils';
 
 @Injectable()
 export class VideosService {
@@ -22,7 +25,12 @@ export class VideosService {
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
     private readonly logger: AppLoggerService,
+    private readonly cacheService: CacheService,
   ) {}
+
+  /**
+   * Maps a Prisma Video record to VideoResponseDto.
+   */
   mapVideoToResponse(video: any): VideoResponseDto {
     return {
       id: video.id,
@@ -35,10 +43,12 @@ export class VideosService {
       updatedAt: video.updatedAt,
     };
   }
+
   /**
    * Create a new video asset.
-   * 1. Call AIService to generate the video based on the provided image and audio URLs.
-   * 2. Save the generated video record into the database.
+   * 1. Calls AIService to generate the video based on provided image and audio URLs.
+   * 2. Saves the generated video record into the database.
+   * 3. Invalidates related cache keys.
    * @param createVideoDto - DTO for creating video.
    * @param userId - ID of the authenticated user.
    */
@@ -55,17 +65,16 @@ export class VideosService {
     this.logger.log(`Creating video for user ${userId}`);
     this.logger.log(`Script ID: ${scriptId}`);
 
-    // Call AIService to generate the video (using dummy endpoint for testing)
     let generatedVideo: CreateVideoResponse;
     try {
-      // Choose the video generation mode: 'simple' or 'full'
+      // For this example, we use 'simple' mode (slideshow).
       generatedVideo = await this.aiService.createVideo(
         {
           image_urls: imageUrls,
           audio_url: audioUrl,
           transition_duration: transitionDuration,
         },
-        'simple', // For this example, we use 'simple' mode (slideshow)
+        'simple',
       );
     } catch (error) {
       throw new HttpException(
@@ -78,18 +87,23 @@ export class VideosService {
       );
     }
 
-    // Save the generated video record into the database.
     let newVideo;
     try {
       newVideo = await this.prisma.video.create({
         data: {
           userId,
           scriptId,
-          status: VideoStatus.COMPLETED, // Assuming video generation is complete
+          status: VideoStatus.COMPLETED, // Assuming generation is complete.
           url: generatedVideo.video_url,
-          // thumbnailUrl can be set later if available.
         },
       });
+      // Invalidate cache for individual video and common pagination keys.
+      await this.cacheService.deleteCache(
+        generateCacheKey(['videos', 'findOne', newVideo.id]),
+      );
+      await this.cacheService.deleteCache(
+        generateCacheKey(['videos', 'findAll', '1', '10']),
+      );
     } catch (dbError) {
       throw new HttpException(
         {
@@ -105,14 +119,29 @@ export class VideosService {
   }
 
   /**
-   * Retrieve a paginated list of video assets.
+   * Retrieves a paginated list of video assets.
+   * Uses caching to reduce database load.
+   *
    * @param page - Page number (default 1).
    * @param limit - Number of records per page (default 10).
+   * @returns Paginated video assets as VideosPaginationDto.
    */
   async findAll(
     page: number = 1,
     limit: number = 10,
   ): Promise<VideosPaginationDto> {
+    const cacheKey = generateCacheKey([
+      'videos',
+      'findAll',
+      page.toString(),
+      limit.toString(),
+    ]);
+    const cached = await this.cacheService.getCache(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit for key: ${cacheKey}`);
+      return JSON.parse(cached);
+    }
+
     const skip = (page - 1) * limit;
     const [videos, totalCount] = await this.prisma.$transaction([
       this.prisma.video.findMany({
@@ -127,27 +156,50 @@ export class VideosService {
     const videoResponses = videos.map((video) =>
       this.mapVideoToResponse(video),
     );
-    return { totalCount, page, limit, totalPages, videos: videoResponses };
+    const result: VideosPaginationDto = {
+      totalCount,
+      page,
+      limit,
+      totalPages,
+      videos: videoResponses,
+    };
+
+    await this.cacheService.setCache(cacheKey, JSON.stringify(result));
+    return result;
   }
 
   /**
-   * Retrieve a single video asset by ID.
+   * Retrieves a single video asset by its ID.
+   * Uses caching to reduce database load.
+   *
    * @param id - The ID of the video.
+   * @returns The video asset as VideoResponseDto.
    */
   async findOne(id: string): Promise<VideoResponseDto> {
+    const cacheKey = generateCacheKey(['videos', 'findOne', id]);
+    const cached = await this.cacheService.getCache(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit for key: ${cacheKey}`);
+      return JSON.parse(cached);
+    }
     const video = await this.prisma.video.findUnique({
       where: { id, deletedAt: null },
     });
     if (!video) {
       throw new NotFoundException(`Video with ID ${id} not found.`);
     }
-    return this.mapVideoToResponse(video);
+    const response = this.mapVideoToResponse(video);
+    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+    return response;
   }
 
   /**
-   * Update an existing video asset.
+   * Updates an existing video asset.
+   * Invalidates related cache keys after update.
+   *
    * @param id - The ID of the video to update.
    * @param updateVideoDto - DTO containing update fields.
+   * @returns The updated video asset as VideoResponseDto.
    */
   async update(
     id: string,
@@ -163,12 +215,22 @@ export class VideosService {
       where: { id },
       data: updateVideoDto,
     });
+    // Invalidate cache for this video and common pagination keys.
+    await this.cacheService.deleteCache(
+      generateCacheKey(['videos', 'findOne', id]),
+    );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['videos', 'findAll', '1', '10']),
+    );
     return this.mapVideoToResponse(updatedVideo);
   }
 
   /**
-   * Soft delete a video asset.
+   * Soft deletes a video asset.
+   * Invalidates related cache keys after deletion.
+   *
    * @param id - The ID of the video to delete.
+   * @returns The soft-deleted video asset as VideoResponseDto.
    */
   async remove(id: string): Promise<VideoResponseDto> {
     const video = await this.prisma.video.findUnique({
@@ -181,6 +243,13 @@ export class VideosService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+    // Invalidate cache for this video and common pagination keys.
+    await this.cacheService.deleteCache(
+      generateCacheKey(['videos', 'findOne', id]),
+    );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['videos', 'findAll', '1', '10']),
+    );
     return this.mapVideoToResponse(deletedVideo);
   }
 }

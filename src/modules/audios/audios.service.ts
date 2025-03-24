@@ -14,15 +14,25 @@ import { AudioResponseDto } from './dto/audio-response.dto';
 import { AudiosPaginationDto } from './dto/audios-pagination.dto';
 import { TTSProvider } from '@prisma/client';
 import { ScriptsService } from '@scripts/scripts.service';
+import { CacheService } from '@/common/cache/cache.service';
+import { generateCacheKey } from '@/common/cache/utils';
+import { AppLoggerService } from '@/common/logger/logger.service';
 
 @Injectable()
 export class AudiosService {
+  private readonly logger = this.appLogger;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
     private readonly scriptsService: ScriptsService,
+    private readonly cacheService: CacheService,
+    private readonly appLogger: AppLoggerService,
   ) {}
 
+  /**
+   * Maps a Prisma Audio record to AudioResponseDto.
+   */
   mapAudioToResponse(audio: any): AudioResponseDto {
     return {
       id: audio.id,
@@ -35,12 +45,17 @@ export class AudiosService {
       updatedAt: audio.updatedAt,
     };
   }
+
   /**
    * Creates a new audio asset.
-   * 1. Calls AIService to generate audio from the provided script.
-   * 2. Saves the generated audio record into the database.
+   * 1. Retrieves the associated script content.
+   * 2. Calls AIService to generate audio from the provided script.
+   * 3. Persists the generated audio record in the database.
+   * 4. Invalidates related cache keys.
+   *
    * @param createAudioDto - DTO for creating audio.
    * @param userId - ID of the authenticated user.
+   * @returns The created audio asset as AudioResponseDto.
    */
   async createAudio(
     createAudioDto: CreateAudioDto,
@@ -53,7 +68,6 @@ export class AudiosService {
 
     const _script = await this.scriptsService.findOne(scriptId);
     const script = _script.content;
-    // Call AIService to generate audio (using dummy endpoint for testing)
     let generatedAudio;
     try {
       generatedAudio = await this.aiService.createAudio({ script }, provider);
@@ -68,7 +82,6 @@ export class AudiosService {
       );
     }
 
-    // Save the generated audio asset into the database.
     let newAudio;
     try {
       newAudio = await this.prisma.audio.create({
@@ -76,12 +89,18 @@ export class AudiosService {
           userId,
           scriptId,
           provider: provider || TTSProvider.OPENAI,
-          // voiceParams can be extended later (set as empty JSON for now)
           voiceParams: {},
           url: generatedAudio.audio_url,
-          durationSeconds: generatedAudio.audio_duration, // Ideally, duration should be determined by another process.
+          durationSeconds: generatedAudio.audio_duration,
         },
       });
+      // Invalidate cache for this audio and common pagination keys.
+      await this.cacheService.deleteCache(
+        generateCacheKey(['audios', 'findOne', newAudio.id]),
+      );
+      await this.cacheService.deleteCache(
+        generateCacheKey(['audios', 'findAll', '1', '10']),
+      );
     } catch (dbError) {
       throw new HttpException(
         {
@@ -92,19 +111,33 @@ export class AudiosService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-
     return this.mapAudioToResponse(newAudio);
   }
 
   /**
    * Retrieves a paginated list of audio assets.
+   * Uses caching to reduce database load.
+   *
    * @param page - Page number (default 1).
    * @param limit - Number of records per page (default 10).
+   * @returns Paginated audio assets as AudiosPaginationDto.
    */
   async findAll(
     page: number = 1,
     limit: number = 10,
   ): Promise<AudiosPaginationDto> {
+    const cacheKey = generateCacheKey([
+      'audios',
+      'findAll',
+      page.toString(),
+      limit.toString(),
+    ]);
+    const cached = await this.cacheService.getCache(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit for key: ${cacheKey}`);
+      return JSON.parse(cached);
+    }
+
     const skip = (page - 1) * limit;
     const [audios, totalCount] = await this.prisma.$transaction([
       this.prisma.audio.findMany({
@@ -119,27 +152,49 @@ export class AudiosService {
     const audioResponses = audios.map((audio) =>
       this.mapAudioToResponse(audio),
     );
-    return { totalCount, page, limit, totalPages, audios: audioResponses };
+    const result: AudiosPaginationDto = {
+      totalCount,
+      page,
+      limit,
+      totalPages,
+      audios: audioResponses,
+    };
+    await this.cacheService.setCache(cacheKey, JSON.stringify(result));
+    return result;
   }
 
   /**
    * Retrieves a single audio asset by its ID.
+   * Uses caching to reduce database load.
+   *
    * @param id - The ID of the audio asset.
+   * @returns The audio asset as AudioResponseDto.
    */
   async findOne(id: string): Promise<AudioResponseDto> {
+    const cacheKey = generateCacheKey(['audios', 'findOne', id]);
+    const cached = await this.cacheService.getCache(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit for key: ${cacheKey}`);
+      return JSON.parse(cached);
+    }
     const audio = await this.prisma.audio.findUnique({
       where: { id, deletedAt: null },
     });
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${id} not found.`);
     }
-    return this.mapAudioToResponse(audio);
+    const response = this.mapAudioToResponse(audio);
+    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+    return response;
   }
 
   /**
    * Updates an existing audio asset.
+   * Invalidates related cache keys after update.
+   *
    * @param id - The ID of the audio asset to update.
    * @param updateAudioDto - DTO with updated fields.
+   * @returns The updated audio asset as AudioResponseDto.
    */
   async update(
     id: string,
@@ -155,12 +210,21 @@ export class AudiosService {
       where: { id },
       data: updateAudioDto,
     });
+    await this.cacheService.deleteCache(
+      generateCacheKey(['audios', 'findOne', id]),
+    );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['audios', 'findAll', '1', '10']),
+    );
     return this.mapAudioToResponse(updatedAudio);
   }
 
   /**
    * Soft deletes an audio asset.
+   * Invalidates related cache keys after deletion.
+   *
    * @param id - The ID of the audio asset to delete.
+   * @returns The soft-deleted audio asset as AudioResponseDto.
    */
   async remove(id: string): Promise<AudioResponseDto> {
     const audio = await this.prisma.audio.findUnique({
@@ -173,6 +237,12 @@ export class AudiosService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+    await this.cacheService.deleteCache(
+      generateCacheKey(['audios', 'findOne', id]),
+    );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['audios', 'findAll', '1', '10']),
+    );
     return this.mapAudioToResponse(deletedAudio);
   }
 }
