@@ -13,7 +13,6 @@ import { PrismaService } from '@database/prisma.service';
 import { AIService } from '@ai/ai.service';
 import { ImageResponseDto } from './dto/image-response.dto';
 import { ImagesPaginationDto } from './dto/images-pagination.dto';
-import { mapImageToResponse } from './utils';
 
 @Injectable()
 export class ImagesService {
@@ -21,6 +20,17 @@ export class ImagesService {
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
   ) {}
+
+  mapImageToResponse(image: any): ImageResponseDto {
+    return {
+      id: image.id,
+      prompt: image.prompt,
+      style: image.style,
+      url: image.url,
+      createdAt: image.createdAt,
+      updatedAt: image.updatedAt,
+    };
+  }
 
   /**
    * Creates a new image asset.
@@ -75,7 +85,7 @@ export class ImagesService {
       );
     }
 
-    return mapImageToResponse(newImage);
+    return this.mapImageToResponse(newImage);
   }
 
   /**
@@ -98,7 +108,9 @@ export class ImagesService {
       this.prisma.image.count({ where: { deletedAt: null } }),
     ]);
     const totalPages = Math.ceil(totalCount / limit);
-    const imageResponses = images.map((image) => mapImageToResponse(image));
+    const imageResponses = images.map((image) =>
+      this.mapImageToResponse(image),
+    );
     return { totalCount, page, limit, totalPages, images: imageResponses };
   }
 
@@ -113,7 +125,7 @@ export class ImagesService {
     if (!image) {
       throw new NotFoundException(`Image with ID ${id} not found.`);
     }
-    return mapImageToResponse(image);
+    return this.mapImageToResponse(image);
   }
 
   /**
@@ -135,7 +147,7 @@ export class ImagesService {
       where: { id },
       data: updateImageDto,
     });
-    return mapImageToResponse(updatedImage);
+    return this.mapImageToResponse(updatedImage);
   }
 
   /**
@@ -153,6 +165,6 @@ export class ImagesService {
       where: { id },
       data: { deletedAt: new Date() },
     });
-    return mapImageToResponse(deletedImage);
+    return this.mapImageToResponse(deletedImage);
   }
 }

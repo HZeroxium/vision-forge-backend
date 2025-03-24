@@ -11,7 +11,6 @@ import { UpdateScriptDto } from './dto/update-script.dto';
 import { PrismaService } from '@database/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ScriptsPaginationDto } from './dto/scripts-pagination.dto';
-import { mapScriptToResponse } from './utils';
 import { ScriptResponseDto } from './dto/script-response.dto';
 import { AppLoggerService } from '@common/logger/logger.service';
 import { AIService } from '@ai/ai.service';
@@ -30,6 +29,17 @@ export class ScriptsService {
     private readonly configService: ConfigService,
     private readonly aiService: AIService,
   ) {}
+
+  mapScriptToResponse = (script: any): ScriptResponseDto => {
+    return {
+      id: script.id,
+      title: script.title,
+      content: script.content,
+      style: script.style,
+      createdAt: script.createdAt,
+      updatedAt: script.updatedAt,
+    };
+  };
 
   /**
    * Create a new script by calling AIService to generate content, then saving into DB.
@@ -66,7 +76,7 @@ export class ScriptsService {
           style,
         },
       });
-      return mapScriptToResponse(newScript);
+      return this.mapScriptToResponse(newScript);
     } catch (dbError) {
       throw new HttpException(
         {
@@ -115,7 +125,7 @@ export class ScriptsService {
     ]);
     const totalPages = Math.ceil(totalCount / limit);
     const scriptResponses = scripts.map((script) =>
-      mapScriptToResponse(script),
+      this.mapScriptToResponse(script),
     );
     return { totalCount, page, limit, totalPages, scripts: scriptResponses };
   }
@@ -127,7 +137,7 @@ export class ScriptsService {
     if (!script) {
       throw new NotFoundException(`Script with ID ${id} not found`);
     }
-    return mapScriptToResponse(script);
+    return this.mapScriptToResponse(script);
   }
 
   async update(
@@ -144,7 +154,7 @@ export class ScriptsService {
       where: { id },
       data: updateScriptDto,
     });
-    return mapScriptToResponse(updatedScript);
+    return this.mapScriptToResponse(updatedScript);
   }
 
   async remove(id: string): Promise<ScriptResponseDto> {
@@ -158,6 +168,6 @@ export class ScriptsService {
       where: { id },
       data: { deletedAt: new Date() },
     });
-    return mapScriptToResponse(deletedScript);
+    return this.mapScriptToResponse(deletedScript);
   }
 }
