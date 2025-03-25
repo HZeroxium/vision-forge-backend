@@ -13,7 +13,9 @@ export class CacheService {
     private readonly configService: ConfigService,
     private readonly logger: AppLoggerService,
   ) {
-    this.redisEnabled = this.configService.get<boolean>('redis.enabled')!;
+    this.redisEnabled = this.configService.get<boolean>('redis.enabled', false);
+
+    this.logger.debug(`Redis enabled: ${this.redisEnabled}`);
 
     if (this.redisEnabled) {
       this.redisClient = new Redis.default({
