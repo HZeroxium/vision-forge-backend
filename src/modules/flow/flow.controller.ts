@@ -17,6 +17,9 @@ import { VideoResponseDto } from '@videos/dto/video-response.dto';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { interval, Observable, switchMap } from 'rxjs';
+import { CreateImagePromptsDto } from '../scripts/dto/create-image-prompts.dto';
+import { ImagesReponseDto } from './dto/images-reponse.dto';
+import { PreviewVoicesReponse } from '@/ai/dto/fastapi.dto';
 
 @Controller('flow')
 export class FlowController {
@@ -31,10 +34,28 @@ export class FlowController {
     @Body() generateVideoFlowDto: GenerateVideoFlowDto,
     @Req() req: any,
   ): Promise<VideoResponseDto> {
-    return this.flowService.generateVideoFlow(
+    return this.flowService.generateVideoFromScriptsAndImages(
       generateVideoFlowDto,
       req.user.userId,
     );
+  }
+
+  @Post('generate-images')
+  @UseGuards(JwtAuthGuard)
+  async generateImagesFlow(
+    @Body() generateImagesDto: CreateImagePromptsDto,
+    @Req() req: any,
+  ): Promise<ImagesReponseDto> {
+    return this.flowService.generateImagesFromScript(
+      generateImagesDto,
+      req.user.userId,
+    );
+  }
+
+  @Get('preview-voices')
+  @UseGuards(JwtAuthGuard)
+  async getPreviewVoices(): Promise<PreviewVoicesReponse> {
+    return this.flowService.getPreviewVoices();
   }
 
   /**

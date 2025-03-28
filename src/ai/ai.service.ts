@@ -14,6 +14,7 @@ import {
   CreateAudioResponse,
   CreateVideoRequest,
   CreateVideoResponse,
+  PreviewVoicesReponse,
 } from './dto/fastapi.dto';
 
 import { TTSProvider } from '@prisma/client';
@@ -133,6 +134,16 @@ export class AIService {
     const response = await lastValueFrom(
       this.httpService.post<CreateVideoResponse>(url, request),
     );
+    return response.data;
+  }
+
+  /**
+   * Calls FastAPI endpoint to preview available voices for TTS.
+   */
+  async getPreviewVoices(): Promise<PreviewVoicesReponse> {
+    const url = `${this.fastApiUrl}/audio/tts/openai/voices`;
+    this.logger.log(`Calling FastAPI preview voices at ${url}`);
+    const response = await lastValueFrom(this.httpService.get(url));
     return response.data;
   }
 }

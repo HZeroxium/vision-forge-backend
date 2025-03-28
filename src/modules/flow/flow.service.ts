@@ -16,6 +16,8 @@ import { CreateImagePromptsDto } from '@scripts/dto/create-image-prompts.dto';
 import { AIService } from '@ai/ai.service';
 import { AppLoggerService } from '@common/logger/logger.service';
 import { VideoResponseDto } from '@videos/dto/video-response.dto';
+import { ImagesReponseDto } from './dto/images-reponse.dto';
+import { PreviewVoicesReponse } from '@/ai/dto/fastapi.dto';
 
 @Injectable()
 export class FlowService {
@@ -46,11 +48,11 @@ export class FlowService {
    * @param userId - The authenticated user’s ID.
    * @returns The final generated video response.
    */
-  async generateVideoFlow(
+  async generateVideoFromScriptsAndImages(
     generateVideoFlowDto: GenerateVideoFlowDto,
     userId: string,
   ): Promise<VideoResponseDto> {
-    const { scriptId } = generateVideoFlowDto;
+    const { scriptId, scripts, imageUrls } = generateVideoFlowDto;
 
     // Retrieve confirmed script from DB.
     const script = await this.scriptsService.findOne(scriptId);
@@ -64,29 +66,15 @@ export class FlowService {
 
     // Prepare DTOs for both branches.
     const createAudioDto: CreateAudioDto = { scriptId };
-    const createImagePromptsDto: CreateImagePromptsDto = {
-      content: confirmedContent,
-      style: script.style || 'default',
-    };
 
     // Execute audio generation and image prompt generation concurrently.
-    const [audioResponse, imagePromptsResponse] = await Promise.all([
-      this.audiosService.createAudio(createAudioDto, userId),
-      this.aiService.createImagePrompts(createImagePromptsDto),
-    ]);
+    const audioResponse = await this.audiosService.createAudio(
+      createAudioDto,
+      userId,
+    );
 
     const audioUrl = audioResponse.url;
-
-    // For each image prompt, generate image concurrently.
-    const prompts = imagePromptsResponse.prompts.map((p) => p.prompt);
-    const imagePromises = prompts.map((prompt) =>
-      this.imagesService.createImage(
-        { prompt, style: script.style || 'default' },
-        userId,
-      ),
-    );
-    const imageResponses = await Promise.all(imagePromises);
-    const imageUrls = imageResponses.map((img) => img.url);
+    this.logger.log(`Generated audio URL: ${audioUrl}`);
 
     // Validate that both branches returned valid data.
     if (!audioUrl || imageUrls.length === 0) {
@@ -101,6 +89,7 @@ export class FlowService {
       imageUrls,
       audioUrl,
       scriptId, // Associate with the script if needed.
+      scripts, // Include the script content for the video.
       transitionDuration: 1, // Default transition duration (can be parameterized).
     };
     const videoResponse = await this.videosService.createVideo(
@@ -109,5 +98,70 @@ export class FlowService {
     );
 
     return videoResponse;
+  }
+
+  async generateImagesFromScript(
+    createImagePromptsDto: CreateImagePromptsDto,
+    userId: string,
+  ): Promise<ImagesReponseDto> {
+    const { content, style } = createImagePromptsDto;
+    if (!content || !style) {
+      throw new HttpException(
+        'Content and style are required.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Call AIService to generate image prompts
+    const imagePrompts = await this.aiService.createImagePrompts({
+      content,
+      style,
+    });
+
+    if (!imagePrompts || !imagePrompts.prompts) {
+      throw new HttpException(
+        'Failed to generate image prompts.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const { prompts } = imagePrompts;
+    const imageUrls = await Promise.all(
+      prompts.map(async (item) => {
+        const imageResponse = await this.imagesService.createImage(
+          {
+            prompt: item.prompt,
+            style,
+          },
+          userId,
+        );
+        return imageResponse.url;
+      }),
+    );
+
+    if (!imageUrls || imageUrls.length === 0) {
+      throw new HttpException(
+        'Failed to generate images.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+    // Map the image URLs to the response DTO.
+    const imagesResponse: ImagesReponseDto = {
+      image_urls: imageUrls,
+      scripts: prompts.map((item) => item.script),
+    };
+
+    return imagesResponse;
+  }
+
+  async getPreviewVoices(): Promise<PreviewVoicesReponse> {
+    const voices = await this.aiService.getPreviewVoices();
+    if (!voices) {
+      throw new HttpException(
+        'Failed to retrieve preview voices.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+    return voices;
   }
 }
