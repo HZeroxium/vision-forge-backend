@@ -96,6 +96,7 @@ export class VideosService {
           scriptId,
           status: VideoStatus.COMPLETED, // Assuming generation is complete.
           url: generatedVideo.video_url,
+          thumbnailUrl: imageUrls[0],
         },
       });
       // Invalidate cache for individual video and common pagination keys.

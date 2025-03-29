@@ -9,6 +9,7 @@ import {
   NotFoundException,
   Sse,
   Get,
+  Query,
 } from '@nestjs/common';
 import { FlowService } from './flow.service';
 import { GenerateVideoFlowDto } from './dto/generate-video.dto';
@@ -19,7 +20,7 @@ import { Queue } from 'bull';
 import { interval, Observable, switchMap } from 'rxjs';
 import { CreateImagePromptsDto } from '../scripts/dto/create-image-prompts.dto';
 import { ImagesReponseDto } from './dto/images-reponse.dto';
-import { PreviewVoicesReponse } from '@/ai/dto/fastapi.dto';
+import { PreviewVoiceReponse } from '@/ai/dto/fastapi.dto';
 
 @Controller('flow')
 export class FlowController {
@@ -52,10 +53,12 @@ export class FlowController {
     );
   }
 
-  @Get('preview-voices')
+  @Get('preview-voice')
   @UseGuards(JwtAuthGuard)
-  async getPreviewVoices(): Promise<PreviewVoicesReponse> {
-    return this.flowService.getPreviewVoices();
+  async getPreviewVoice(
+    @Query('voice_id') voiceId?: string,
+  ): Promise<PreviewVoiceReponse> {
+    return this.flowService.getPreviewVoice(voiceId);
   }
 
   /**

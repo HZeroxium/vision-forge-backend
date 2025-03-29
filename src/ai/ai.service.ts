@@ -14,7 +14,7 @@ import {
   CreateAudioResponse,
   CreateVideoRequest,
   CreateVideoResponse,
-  PreviewVoicesReponse,
+  PreviewVoiceReponse,
 } from './dto/fastapi.dto';
 
 import { TTSProvider } from '@prisma/client';
@@ -139,9 +139,17 @@ export class AIService {
 
   /**
    * Calls FastAPI endpoint to preview available voices for TTS.
+   * @param voiceId Optional voice ID to retrieve a specific voice preview
    */
-  async getPreviewVoices(): Promise<PreviewVoicesReponse> {
-    const url = `${this.fastApiUrl}/audio/tts/openai/voices`;
+  async getPreviewVoice(voiceId?: string): Promise<PreviewVoiceReponse> {
+    let url = `${this.fastApiUrl}/audio/tts/openai/voices`;
+
+    // If a specific voice ID is provided, add it as a query parameter
+    if (voiceId) {
+      url += `?voice_id=${voiceId}`;
+      this.logger.log(`Requesting specific voice preview for ID: ${voiceId}`);
+    }
+
     this.logger.log(`Calling FastAPI preview voices at ${url}`);
     const response = await lastValueFrom(this.httpService.get(url));
     return response.data;

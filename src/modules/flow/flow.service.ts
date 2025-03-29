@@ -17,7 +17,7 @@ import { AIService } from '@ai/ai.service';
 import { AppLoggerService } from '@common/logger/logger.service';
 import { VideoResponseDto } from '@videos/dto/video-response.dto';
 import { ImagesReponseDto } from './dto/images-reponse.dto';
-import { PreviewVoicesReponse } from '@/ai/dto/fastapi.dto';
+import { PreviewVoiceReponse } from '@ai/dto/fastapi.dto';
 
 @Injectable()
 export class FlowService {
@@ -59,7 +59,15 @@ export class FlowService {
     if (!script) {
       throw new NotFoundException(`Script with ID ${scriptId} not found.`);
     }
-    const confirmedContent = script.content;
+
+    // Check if the concactenation of scripts is not equal to the original script. Update the script content if needed.
+    const concatenatedScripts = scripts.join(' ');
+    if (concatenatedScripts !== script.content) {
+      await this.scriptsService.update(scriptId, {
+        content: concatenatedScripts,
+      });
+    }
+
     this.logger.log(
       `User ${userId} confirmed content for title "${script.title}".`,
     );
@@ -154,14 +162,14 @@ export class FlowService {
     return imagesResponse;
   }
 
-  async getPreviewVoices(): Promise<PreviewVoicesReponse> {
-    const voices = await this.aiService.getPreviewVoices();
-    if (!voices) {
+  async getPreviewVoice(voiceId?: string): Promise<PreviewVoiceReponse> {
+    const voice = await this.aiService.getPreviewVoice(voiceId);
+    if (!voice) {
       throw new HttpException(
-        'Failed to retrieve preview voices.',
+        'Failed to retrieve preview voice.',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-    return voices;
+    return voice;
   }
 }

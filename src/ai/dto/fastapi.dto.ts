@@ -51,10 +51,6 @@ export interface CreateVideoResponse {
   video_url: string;
 }
 
-export interface PreviewVoicesReponse {
-  voices: {
-    id: string;
-    description: string;
-    url: string;
-  }[];
+export interface PreviewVoiceReponse {
+  url: string;
 }
