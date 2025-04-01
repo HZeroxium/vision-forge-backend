@@ -113,4 +113,13 @@ export class FlowController {
       }),
     );
   }
+
+  @Get('video-by-script/:scriptId')
+  @UseGuards(JwtAuthGuard)
+  async getVideoByScriptId(
+    @Param('scriptId') scriptId: string,
+    @Req() req: any,
+  ): Promise<VideoResponseDto> {
+    return this.flowService.getVideoByScriptId(scriptId);
+  }
 }

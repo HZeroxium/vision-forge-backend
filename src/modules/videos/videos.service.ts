@@ -254,4 +254,28 @@ export class VideosService {
     );
     return this.mapVideoToResponse(deletedVideo);
   }
+
+  async findOneByScriptId(scriptId: string): Promise<VideoResponseDto> {
+    const cacheKey = generateCacheKey([
+      'videos',
+      'findOneByScriptId',
+      scriptId,
+    ]);
+    const cached = await this.cacheService.getCache(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit for key: ${cacheKey}`);
+      return JSON.parse(cached);
+    }
+    const video = await this.prisma.video.findFirst({
+      where: { scriptId, deletedAt: null },
+    });
+    if (!video) {
+      throw new NotFoundException(
+        `Video with Script ID ${scriptId} not found.`,
+      );
+    }
+    const response = this.mapVideoToResponse(video);
+    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+    return response;
+  }
 }

@@ -8,6 +8,7 @@ import { AudiosService } from '@audios/audios.service';
 import { ImagesService } from '@images/images.service';
 import { VideosService } from '@videos/videos.service';
 import { AIService } from '@ai/ai.service';
+import { VideoResponseDto } from '../videos/dto/video-response.dto';
 
 @Processor('video-generation')
 export class FlowProcessor {
@@ -125,7 +126,7 @@ export class FlowProcessor {
 
         // Step 4: Assemble video (100%)
         this.logger.log('Assembling final video');
-        const video = await this.videosService.createVideo(
+        const video: VideoResponseDto = await this.videosService.createVideo(
           {
             imageUrls,
             audioUrl: audio.url,

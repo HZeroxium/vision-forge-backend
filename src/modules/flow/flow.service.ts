@@ -172,4 +172,14 @@ export class FlowService {
     }
     return voice;
   }
+
+  async getVideoByScriptId(scriptId: string): Promise<VideoResponseDto> {
+    const video = await this.videosService.findOneByScriptId(scriptId);
+    if (!video) {
+      throw new NotFoundException(
+        `Video with script ID ${scriptId} not found.`,
+      );
+    }
+    return video;
+  }
 }
