@@ -29,7 +29,7 @@ import { FlowProcessor } from './flow.processor';
           type: 'exponential',
           delay: 5000, // Wait 5s, 10s, 20s...
         },
-        removeOnComplete: true,
+        removeOnComplete: 1000, // Keep 1000 completed jobs for inspection
         removeOnFail: false, // Keep failed jobs for inspection
       },
     }),
