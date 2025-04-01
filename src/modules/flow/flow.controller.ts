@@ -9,6 +9,7 @@ import {
   NotFoundException,
   Sse,
   Get,
+  Query,
 } from '@nestjs/common';
 import { FlowService } from './flow.service';
 import { GenerateVideoFlowDto } from './dto/generate-video.dto';
@@ -17,6 +18,9 @@ import { VideoResponseDto } from '@videos/dto/video-response.dto';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { interval, Observable, switchMap } from 'rxjs';
+import { CreateImagePromptsDto } from '../scripts/dto/create-image-prompts.dto';
+import { ImagesReponseDto } from './dto/images-reponse.dto';
+import { PreviewVoiceReponse } from '@/ai/dto/fastapi.dto';
 
 @Controller('flow')
 export class FlowController {
@@ -31,10 +35,30 @@ export class FlowController {
     @Body() generateVideoFlowDto: GenerateVideoFlowDto,
     @Req() req: any,
   ): Promise<VideoResponseDto> {
-    return this.flowService.generateVideoFlow(
+    return this.flowService.generateVideoFromScriptsAndImages(
       generateVideoFlowDto,
       req.user.userId,
     );
+  }
+
+  @Post('generate-images')
+  @UseGuards(JwtAuthGuard)
+  async generateImagesFlow(
+    @Body() generateImagesDto: CreateImagePromptsDto,
+    @Req() req: any,
+  ): Promise<ImagesReponseDto> {
+    return this.flowService.generateImagesFromScript(
+      generateImagesDto,
+      req.user.userId,
+    );
+  }
+
+  @Get('preview-voice')
+  @UseGuards(JwtAuthGuard)
+  async getPreviewVoice(
+    @Query('voice_id') voiceId?: string,
+  ): Promise<PreviewVoiceReponse> {
+    return this.flowService.getPreviewVoice(voiceId);
   }
 
   /**

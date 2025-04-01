@@ -23,7 +23,9 @@ export class FlowProcessor {
   ) {}
 
   @Process({ name: 'generate', concurrency: 2 })
-  async handleVideoGeneration(job: Job<{ userId: string; scriptId: string }>) {
+  async handleVideoGeneration(
+    job: Job<{ userId: string; scriptId: string; scripts: string[] }>,
+  ) {
     const { userId, scriptId } = job.data;
     this.logger.log(`Processing job ${job.id}`);
 
@@ -61,6 +63,7 @@ export class FlowProcessor {
         audioUrl: audio.url,
         scriptId,
         transitionDuration: 1,
+        scripts: prompts.prompts.map((p) => p.prompt),
       },
       userId,
     );

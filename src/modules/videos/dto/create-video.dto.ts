@@ -17,6 +17,10 @@ export class CreateVideoDto {
   @ArrayNotEmpty()
   imageUrls: string[];
 
+  @IsArray()
+  @ArrayNotEmpty()
+  scripts: string[];
+
   @IsString()
   @IsNotEmpty()
   audioUrl: string;

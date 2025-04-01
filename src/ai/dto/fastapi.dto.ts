@@ -1,5 +1,7 @@
 // src/ai/dto/fastapi.dto.ts
 
+import { Optional } from '@prisma/client/runtime/library';
+
 export interface CreateScriptRequest {
   title: string;
   style: string;
@@ -24,7 +26,7 @@ export interface CreateImagePromptsRequest {
 }
 
 export interface CreateImagePromptsResponse {
-  prompts: { prompt: string }[];
+  prompts: { prompt: string; script: string }[];
   style: string;
 }
 
@@ -39,6 +41,7 @@ export interface CreateAudioResponse {
 
 export interface CreateVideoRequest {
   image_urls: string[];
+  scripts: Optional<string>[];
   audio_url: string;
   title?: string;
   transition_duration?: number;
@@ -46,4 +49,8 @@ export interface CreateVideoRequest {
 
 export interface CreateVideoResponse {
   video_url: string;
+}
+
+export interface PreviewVoiceReponse {
+  url: string;
 }
