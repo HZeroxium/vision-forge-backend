@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -13,10 +14,16 @@ import { Role, User } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { UsersPaginationDto } from './dto/user-pagination.dto';
 import { UserResponseDto } from './dto/user-reponse.dto';
+import { UserMapper } from './mappers/user.mapper';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(UsersService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly userMapper: UserMapper,
+  ) {}
 
   /**
    * Retrieves a paginated list of users.
@@ -31,6 +38,10 @@ export class UsersService {
     limit: number = 10,
     order: 'asc' | 'desc' = 'asc',
   ): Promise<UsersPaginationDto> {
+    this.logger.log(
+      `Finding all users - page: ${page}, limit: ${limit}, order: ${order}`,
+    );
+
     // Convert page and limit to integers
     page = parseInt(page.toString(), 10);
     limit = parseInt(limit.toString(), 10);
@@ -43,13 +54,6 @@ export class UsersService {
       // Retrieve users with pagination and ordering
       this.prisma.user.findMany({
         where: { deletedAt: null },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          role: true,
-          createdAt: true,
-        },
         orderBy: { id: order },
         skip,
         take: limit,
@@ -58,15 +62,14 @@ export class UsersService {
       this.prisma.user.count({ where: { deletedAt: null } }),
     ]);
 
-    // Return the paginated list and metadata
-    return {
+    // Use the mapper to transform the entities to DTOs
+    return this.userMapper.mapToPaginationDto(
+      users,
       totalCount,
       page,
       limit,
-      totalPages: Math.ceil(totalCount / limit),
-      users,
       order,
-    };
+    );
   }
 
   /**
@@ -77,19 +80,19 @@ export class UsersService {
    * @throws {NotFoundException} If the user is not found.
    */
   async findById(id: string): Promise<UserResponseDto> {
+    this.logger.log(`Finding user by id: ${id}`);
+
     const user = await this.prisma.user.findUnique({
       where: { id, deletedAt: null },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-      },
     });
 
-    if (!user) throw new NotFoundException(`User with ID ${id} not found`);
-    return new UserResponseDto(user);
+    if (!user) {
+      this.logger.warn(`User with ID ${id} not found`);
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    // Use the mapper to transform the entity to DTO
+    return this.userMapper.mapEntityToDto(user);
   }
 
   /**

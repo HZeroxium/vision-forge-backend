@@ -1,27 +1,35 @@
 // modules/users/dto/user-reponse.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
-import { Role, User } from '@prisma/client';
+import { Role } from '@prisma/client';
 
+/**
+ * Data Transfer Object for user responses
+ * Ensures we never expose sensitive data like passwords
+ */
 export class UserResponseDto {
-  @ApiProperty()
+  @ApiProperty({ description: 'Unique identifier of the user' })
   id: string;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Email address of the user' })
   email: string;
 
-  @ApiProperty()
-  name: string | null;
+  @ApiProperty({ description: 'Full name of the user', required: false })
+  name?: string;
 
-  @ApiProperty({ enum: Role })
+  @ApiProperty({
+    description: 'Role of the user',
+    enum: Role,
+    example: Role.USER,
+  })
   role: Role;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Date when the user was created' })
   createdAt: Date;
 
-  // @ApiProperty()
-  // updatedAt: Date;
+  @ApiProperty({ description: 'Date when the user was last updated' })
+  updatedAt?: Date;
 
-  constructor(partial: Partial<User>) {
+  constructor(partial: Partial<UserResponseDto>) {
     Object.assign(this, partial);
   }
 }
