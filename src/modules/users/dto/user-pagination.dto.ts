@@ -2,22 +2,37 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { UserResponseDto } from './user-reponse.dto';
 
-export class UsersPaginationDto {
+export class PaginationMeta {
   @ApiProperty()
-  totalCount: number;
+  totalItems: number;
 
   @ApiProperty()
-  page: number;
+  itemsPerPage: number;
 
   @ApiProperty()
-  limit: number;
+  currentPage: number;
 
   @ApiProperty()
   totalPages: number;
 
   @ApiProperty()
-  order: 'asc' | 'desc';
+  sortOrder: 'asc' | 'desc';
 
+  @ApiProperty()
+  hasNextPage: boolean;
+
+  @ApiProperty()
+  hasPreviousPage: boolean;
+}
+
+export class UsersPaginationDto {
   @ApiProperty({ type: [UserResponseDto] })
-  users: UserResponseDto[];
+  data: UserResponseDto[];
+
+  @ApiProperty({ type: PaginationMeta })
+  meta: PaginationMeta;
+
+  constructor(partial: Partial<UsersPaginationDto>) {
+    Object.assign(this, partial);
+  }
 }

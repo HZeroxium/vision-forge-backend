@@ -68,15 +68,12 @@ export class VideosService {
     let generatedVideo: CreateVideoResponse;
     try {
       // For this example, we use 'simple' mode (slideshow).
-      generatedVideo = await this.aiService.createVideo(
-        {
-          image_urls: imageUrls,
-          audio_url: audioUrl,
-          transition_duration: transitionDuration,
-          scripts,
-        },
-        'simple',
-      );
+      generatedVideo = await this.aiService.createVideo({
+        image_urls: imageUrls,
+        audio_url: audioUrl,
+        transition_duration: transitionDuration,
+        scripts,
+      });
     } catch (error) {
       throw new HttpException(
         {

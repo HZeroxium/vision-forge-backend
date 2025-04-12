@@ -1,6 +1,6 @@
 // modules/users/mappers/user.mapper.ts
 import { Injectable } from '@nestjs/common';
-import { User } from '@prisma/client';
+import { UserEntity } from '../domain/entities/user.entity';
 import { UserResponseDto } from '../dto/user-reponse.dto';
 import { UsersPaginationDto } from '../dto/user-pagination.dto';
 
@@ -19,7 +19,7 @@ export class UserMapper {
    * @param user The User entity to map
    * @returns The mapped UserResponseDto
    */
-  mapEntityToDto(user: User | any): UserResponseDto {
+  mapEntityToDto(user: UserEntity | any): UserResponseDto {
     return new UserResponseDto({
       id: user.id,
       email: user.email,
@@ -36,7 +36,7 @@ export class UserMapper {
    * @param users Array of User entities
    * @returns Array of UserResponseDto objects
    */
-  mapEntitiesToDtos(users: User[] | any[]): UserResponseDto[] {
+  mapEntitiesToDtos(users: UserEntity[] | any[]): UserResponseDto[] {
     return users.map((user) => this.mapEntityToDto(user));
   }
 
@@ -51,19 +51,26 @@ export class UserMapper {
    * @returns UsersPaginationDto with mapped users
    */
   mapToPaginationDto(
-    users: User[] | any[],
+    users: UserEntity[] | any[],
     totalCount: number,
     page: number,
     limit: number,
     order: 'asc' | 'desc',
   ): UsersPaginationDto {
-    return {
-      totalCount,
-      page,
-      limit,
-      totalPages: Math.ceil(totalCount / limit),
-      users: this.mapEntitiesToDtos(users),
-      order,
-    };
+    const mappedUsers = this.mapEntitiesToDtos(users);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return new UsersPaginationDto({
+      data: mappedUsers,
+      meta: {
+        totalItems: totalCount,
+        itemsPerPage: limit,
+        currentPage: page,
+        totalPages,
+        sortOrder: order,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    });
   }
 }

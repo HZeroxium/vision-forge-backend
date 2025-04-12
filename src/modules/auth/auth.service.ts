@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UserEntity } from '@users/domain/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -76,11 +77,13 @@ export class AuthService {
     return { access_token: this.jwtService.sign(payload) };
   }
 
-  async validateOAuthLogin(profile: any) {
+  async validateOAuthLogin(profile: any): Promise<UserEntity> {
     const { emails, displayName } = profile;
     const email = emails[0].value;
     let user = await this.usersService.findByEmail(email);
+
     if (!user) {
+      // Create a new user with OAuth credentials
       user = await this.usersService.create({
         email,
         password: '', // No password for OAuth user
@@ -88,6 +91,7 @@ export class AuthService {
         role: Role.USER, // Default role
       });
     }
+
     return user;
   }
 }

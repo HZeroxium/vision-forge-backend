@@ -5,23 +5,26 @@ import {
   NotFoundException,
   UnauthorizedException,
   Logger,
+  Inject,
 } from '@nestjs/common';
-import { PrismaService } from '@database/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
-import { Role, User } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { UsersPaginationDto } from './dto/user-pagination.dto';
 import { UserResponseDto } from './dto/user-reponse.dto';
 import { UserMapper } from './mappers/user.mapper';
+import { IUserRepository } from './domain/repositories/user.repository.interface';
+import { UserEntity } from './domain/entities/user.entity';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    @Inject('IUserRepository')
+    private readonly userRepository: IUserRepository,
     private readonly userMapper: UserMapper,
   ) {}
 
@@ -46,21 +49,11 @@ export class UsersService {
     page = parseInt(page.toString(), 10);
     limit = parseInt(limit.toString(), 10);
 
-    // Calculate the number of records to skip
-    const skip = (page - 1) * limit;
-
-    // Execute a transaction to retrieve users and total count
-    const [users, totalCount] = await this.prisma.$transaction([
-      // Retrieve users with pagination and ordering
-      this.prisma.user.findMany({
-        where: { deletedAt: null },
-        orderBy: { id: order },
-        skip,
-        take: limit,
-      }),
-      // Count the total number of users
-      this.prisma.user.count({ where: { deletedAt: null } }),
-    ]);
+    const { users, totalCount } = await this.userRepository.findAll(
+      page,
+      limit,
+      order,
+    );
 
     // Use the mapper to transform the entities to DTOs
     return this.userMapper.mapToPaginationDto(
@@ -82,9 +75,7 @@ export class UsersService {
   async findById(id: string): Promise<UserResponseDto> {
     this.logger.log(`Finding user by id: ${id}`);
 
-    const user = await this.prisma.user.findUnique({
-      where: { id, deletedAt: null },
-    });
+    const user = await this.userRepository.findById(id);
 
     if (!user) {
       this.logger.warn(`User with ID ${id} not found`);
@@ -101,26 +92,23 @@ export class UsersService {
    * @param email The email address of the user to find.
    * @returns A promise that resolves to the user with the given email, or null if not found.
    */
-  async findByEmail(email: string): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { email, deletedAt: null } });
+  async findByEmail(email: string): Promise<UserEntity | null> {
+    return this.userRepository.findByEmail(email);
   }
 
   /**
    * Creates a new user.
    *
    * @param createUserDto The details of the new user.
-   * @returns The newly created user.
+   * @returns The newly created user entity.
    */
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    return this.prisma.user.create({
-      data: {
-        email: createUserDto.email,
-        password: hashedPassword,
-        name: createUserDto.name,
-        role: createUserDto.role || Role.USER,
-      },
-    });
+  async create(createUserDto: CreateUserDto): Promise<UserEntity> {
+    // Generate hash for non-empty passwords only
+    const hashedPassword = createUserDto.password
+      ? await bcrypt.hash(createUserDto.password, 10)
+      : ''; // Empty hash for OAuth users
+
+    return this.userRepository.create(createUserDto, hashedPassword);
   }
 
   /**
@@ -128,41 +116,31 @@ export class UsersService {
    *
    * @param id The ID of the user to update.
    * @param updateUserDto The details to update.
-   * @returns The updated user.
+   * @returns The updated user entity.
    */
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.findById(id);
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<UserEntity> {
+    const user = await this.userRepository.findById(id);
     if (!user) throw new NotFoundException('User not found');
 
     let hashedPassword: string | undefined;
     if (updateUserDto.password) {
       hashedPassword = await bcrypt.hash(updateUserDto.password, 10);
     }
-    return this.prisma.user.update({
-      where: { id },
-      data: {
-        email: updateUserDto.email,
-        password: hashedPassword,
-        name: updateUserDto.name,
-        role: updateUserDto.role,
-      },
-    });
+
+    return this.userRepository.update(id, updateUserDto, hashedPassword);
   }
 
   /**
    * Deletes a user.
    *
    * @param id The ID of the user to delete.
-   * @returns The deleted user.
+   * @returns The deleted user entity.
    */
-  async delete(id: string): Promise<User> {
-    const user = await this.findById(id);
+  async delete(id: string): Promise<UserEntity> {
+    const user = await this.userRepository.findById(id);
     if (!user) throw new NotFoundException('User not found');
 
-    return this.prisma.user.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
+    return this.userRepository.softDelete(id);
   }
 
   /**
@@ -172,14 +150,13 @@ export class UsersService {
    * @returns The password reset token.
    */
   async setResetToken(email: string): Promise<string> {
-    const user = await this.findByEmail(email);
+    const user = await this.userRepository.findByEmail(email);
     if (!user) throw new NotFoundException('User not found');
+
     const token = randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 3600000); // 1 hour
-    await this.prisma.user.update({
-      where: { email },
-      data: { passwordResetToken: token, passwordResetExpires: expires },
-    });
+
+    await this.userRepository.setResetToken(email, token, expires);
     return token;
   }
 
@@ -188,26 +165,15 @@ export class UsersService {
    *
    * @param token The password reset token received via email.
    * @param newPassword The new password to set.
-   * @returns The updated user.
+   * @returns The updated user entity.
    * @throws {NotFoundException} If the token is invalid or expired.
    */
-  async resetPassword(token: string, newPassword: string): Promise<User> {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        passwordResetToken: token,
-        passwordResetExpires: { gt: new Date() },
-      },
-    });
+  async resetPassword(token: string, newPassword: string): Promise<UserEntity> {
+    const user = await this.userRepository.findByResetToken(token);
     if (!user) throw new NotFoundException('Invalid or expired token');
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    return this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashedPassword,
-        passwordResetToken: null,
-        passwordResetExpires: null,
-      },
-    });
+    return this.userRepository.resetPassword(user.id, hashedPassword);
   }
 
   /**
@@ -216,17 +182,15 @@ export class UsersService {
    * @param userId - The ID of the user whose password is being changed.
    * @param oldPassword - The current password of the user.
    * @param newPassword - The new password to set.
-   * @returns A promise that resolves to the updated user.
+   * @returns A promise that resolves to the updated user entity.
    * @throws {UnauthorizedException} If the old password is incorrect.
    */
   async changePassword(
     userId: string,
     oldPassword: string,
     newPassword: string,
-  ): Promise<User> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId, deletedAt: null },
-    });
+  ): Promise<UserEntity> {
+    const user = await this.userRepository.findById(userId);
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -235,10 +199,8 @@ export class UsersService {
     if (!(await bcrypt.compare(oldPassword, user.password))) {
       throw new UnauthorizedException('Old password is incorrect');
     }
+
     const hashedPassword: string = await bcrypt.hash(newPassword, 10);
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: { password: hashedPassword },
-    });
+    return this.userRepository.resetPassword(userId, hashedPassword);
   }
 }
