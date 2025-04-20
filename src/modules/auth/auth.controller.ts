@@ -84,15 +84,15 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
-  googleAuthCallback(@Req() req, @Res() res: Response) {
+  async googleAuthCallback(@Req() req, @Res() res: Response) {
     // After successful Google authentication, we need to:
     // 1. Log in the user and generate a JWT token
     // 2. Redirect to the frontend with the token
-    const access_token = this.authService.login(req.user);
+    const tokenObj = await this.authService.login(req.user);
 
-    // Fix: Extract access_token from the returned object
+    // Fixed: Access the token property from the returned object
     res.redirect(
-      `${process.env.FRONTEND_URL}/auth/google?token=${access_token}`,
+      `${process.env.FRONTEND_URL}/auth/google?token=${tokenObj.access_token}`,
     );
   }
 }
