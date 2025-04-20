@@ -33,12 +33,13 @@ export class ScriptsService {
     private readonly appLogger: AppLoggerService,
   ) {}
 
-  mapScriptToResponse = (script: any): ScriptResponseDto => {
+  mapScriptToResponse = (script: any, sources?: any[]): ScriptResponseDto => {
     return {
       id: script.id,
       title: script.title,
       content: script.content,
       style: script.style,
+      sources: sources || script.sources,
       createdAt: script.createdAt,
       updatedAt: script.updatedAt,
     };
@@ -51,7 +52,7 @@ export class ScriptsService {
     createScriptDto: CreateScriptDto,
     userId: string,
   ): Promise<ScriptResponseDto> {
-    const { title, style } = createScriptDto;
+    const { title, style, language } = createScriptDto;
     if (!title || !style) {
       throw new BadRequestException('Title and style are required.');
     }
@@ -66,18 +67,21 @@ export class ScriptsService {
 
     let generatedScript: CreateScriptResponse | null = null;
     // Check cache first
-    const cachedContent = await this.cacheService.getCache(cacheKey);
-    if (cachedContent) {
+    const cachedResponse = await this.cacheService.getCache(cacheKey);
+    if (cachedResponse) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
-      generatedScript = { content: cachedContent };
+      generatedScript = JSON.parse(cachedResponse);
     } else {
       this.logger.log(
         `Cache miss for key: ${cacheKey}. Calling AIService to generate script.`,
       );
       try {
         generatedScript = await this.aiService.createScript({ title, style });
-        // Cache the result; TTL can be set in config (default provided)
-        await this.cacheService.setCache(cacheKey, generatedScript.content);
+        // Cache the full response object including content and sources
+        await this.cacheService.setCache(
+          cacheKey,
+          JSON.stringify(generatedScript),
+        );
       } catch (error) {
         throw new HttpException(
           {
@@ -90,6 +94,19 @@ export class ScriptsService {
       }
     }
 
+    if (!generatedScript) {
+      throw new HttpException(
+        {
+          errorCode: 'AI_ERROR',
+          message: 'Failed to generate script content.',
+        },
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+
+    // Store sources separately as they won't be saved to the database
+    const sources = generatedScript.sources;
+
     try {
       const newScript = await this.prisma.script.create({
         data: {
@@ -100,14 +117,15 @@ export class ScriptsService {
         },
       });
       // Invalidate relevant cache keys after creation
-      // Invalidate cache for individual script and common pagination keys.
       await this.cacheService.deleteCache(
         generateCacheKey(['scripts', 'findOne', newScript.id]),
       );
       await this.cacheService.deleteCache(
         generateCacheKey(['scripts', 'findAll', '1', '10']),
       );
-      return this.mapScriptToResponse(newScript);
+
+      // Return the response with sources added for frontend display
+      return this.mapScriptToResponse(newScript, sources);
     } catch (dbError) {
       throw new HttpException(
         {

@@ -8,8 +8,16 @@ export interface CreateScriptRequest {
   language?: string;
 }
 
+interface Source {
+  title: string;
+  content: string;
+  url: string;
+  source_type: string;
+}
+
 export interface CreateScriptResponse {
   content: string;
+  sources: Source[];
 }
 
 export interface CreateImageRequest {

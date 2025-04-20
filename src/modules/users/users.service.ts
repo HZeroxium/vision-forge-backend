@@ -10,7 +10,6 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
-import { Role } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { UsersPaginationDto } from './dto/user-pagination.dto';
 import { UserResponseDto } from './dto/user-reponse.dto';

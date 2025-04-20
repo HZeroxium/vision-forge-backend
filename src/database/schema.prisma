@@ -32,13 +32,6 @@ enum TTSProvider {
   OPENAI
 }
 
-enum JobStatus {
-  PENDING
-  RUNNING
-  DONE
-  FAILED
-}
-
 enum PublishPlatform {
   YOUTUBE
   TIKTOK
@@ -97,7 +90,6 @@ model Video {
   // One-to-many relations with Images, Audios, VideoGenerationJobs and PublishingHistory
   images              Image[]
   audios              Audio[]
-  videoJobs           VideoGenerationJob[]
   publishingHistories PublishingHistory[]
 }
 
@@ -134,24 +126,8 @@ model Audio {
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   deletedAt       DateTime?
-  // For jobs that use this audio asset.
-  videoJobs       VideoGenerationJob[]
 }
 
-/// Model for background video generation jobs (if needed for asynchronous processing).
-model VideoGenerationJob {
-  id        String    @id @default(uuid())
-  video     Video     @relation(fields: [videoId], references: [id])
-  videoId   String
-  audio     Audio?    @relation(fields: [audioId], references: [id])
-  audioId   String?
-  status    JobStatus
-  jobParams Json // Parameters such as timeline, effects, transitions.
-  resultUrl String? // Generalized URL for the output video.
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-}
 
 /// Model for storing publishing history of videos to external platforms.
 model PublishingHistory {

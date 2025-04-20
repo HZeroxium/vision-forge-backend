@@ -9,7 +9,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import jwtConfig from '@config/jwt.config';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
-// import { GoogleStrategy } from './strategies/google.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
 import { DatabaseModule } from '@database/database.module';
 import { UsersModule } from '@users/users.module';
 import { AuthGuard } from '@common/guards/auth.guard';
@@ -33,7 +33,7 @@ import { AuthGuard } from '@common/guards/auth.guard';
     AuthService,
     JwtStrategy,
     LocalStrategy,
-    // GoogleStrategy,
+    GoogleStrategy,
     AuthGuard,
   ],
   controllers: [AuthController],

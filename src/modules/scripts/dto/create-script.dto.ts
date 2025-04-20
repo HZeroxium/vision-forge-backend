@@ -9,4 +9,9 @@ export class CreateScriptDto {
   @IsNotEmpty()
   @IsOptional()
   style?: string; // e.g., 'child', 'common', 'in-depth'
+
+  // Language of the script, default is 'vn'
+  @IsString()
+  @IsOptional()
+  language?: string; // e.g., 'vn', 'en', 'fr', etc.
 }
