@@ -80,21 +80,79 @@ export class YouTubeService {
    */
   async handleCallback(code: string, userId: string): Promise<any> {
     try {
+      // Log the start of the authentication process with user ID
+      this.logger.log(
+        `Starting YouTube OAuth callback process for user ${userId}`,
+      );
+
+      // Validate cache service is available
+      try {
+        await this.cacheService.getCache('test-key');
+      } catch (cacheError) {
+        this.logger.error(
+          `Cache service error: ${cacheError.message}`,
+          cacheError.stack,
+        );
+        throw new Error('Cache service unavailable');
+      }
+
       // Exchange code for tokens
-      const { tokens } = await this.oauth2Client.getToken(code);
+      this.logger.log('Exchanging authorization code for tokens');
+      let tokens;
+      try {
+        // IMPORTANT: Explicitly set the redirect_uri to match what was used in auth URL
+        const redirectUri = this.configService.get<string>(
+          'YOUTUBE_PUBLIC_REDIRECT_URL',
+        );
+        this.logger.log(
+          `Using redirect URI for token exchange: ${redirectUri}`,
+        );
+
+        const response = await this.oauth2Client.getToken({
+          code,
+          redirect_uri: redirectUri,
+        });
+
+        tokens = response.tokens;
+        this.logger.log('Successfully obtained tokens');
+      } catch (tokenError) {
+        this.logger.error(
+          `Token exchange error: ${tokenError.message}`,
+          tokenError.stack,
+        );
+        throw new Error(
+          `Failed to exchange authorization code: ${tokenError.message}`,
+        );
+      }
 
       // Set credentials
       this.oauth2Client.setCredentials(tokens);
 
       // Get channel info
-      const response = await this.youtube.channels.list({
-        part: 'snippet',
-        mine: true,
-      });
+      this.logger.log('Fetching YouTube channel information');
+      let channelData, channelId, channelName;
+      try {
+        const response = await this.youtube.channels.list({
+          part: 'snippet',
+          mine: true,
+        });
 
-      const channelData = response.data.items?.[0];
-      const channelId = channelData?.id;
-      const channelName = channelData?.snippet?.title;
+        channelData = response.data.items?.[0];
+        if (!channelData) {
+          this.logger.error('No channel data returned from YouTube API');
+          throw new Error('No channel data available');
+        }
+
+        channelId = channelData?.id;
+        channelName = channelData?.snippet?.title;
+        this.logger.log(`Found channel: ${channelName} (${channelId})`);
+      } catch (channelError) {
+        this.logger.error(
+          `Channel info error: ${channelError.message}`,
+          channelError.stack,
+        );
+        throw new Error(`Failed to get channel info: ${channelError.message}`);
+      }
 
       // Store auth data in Redis with expiration based on token expiry
       const tokenData = {
@@ -115,11 +173,21 @@ export class YouTubeService {
         : 3600;
 
       // Store in Redis
-      await this.cacheService.setCache(
-        `${this.OAUTH_CACHE_PREFIX}${userId}`,
-        JSON.stringify(tokenData),
-        ttl,
-      );
+      try {
+        this.logger.log(`Storing token data in cache with TTL: ${ttl}s`);
+        await this.cacheService.setCache(
+          `${this.OAUTH_CACHE_PREFIX}${userId}`,
+          JSON.stringify(tokenData),
+          ttl,
+        );
+        this.logger.log('Successfully stored tokens in cache');
+      } catch (cacheError) {
+        this.logger.error(
+          `Failed to store tokens in cache: ${cacheError.message}`,
+          cacheError.stack,
+        );
+        throw new Error(`Cache storage error: ${cacheError.message}`);
+      }
 
       return {
         success: true,
@@ -131,8 +199,32 @@ export class YouTubeService {
         `Error in OAuth callback: ${error.message}`,
         error.stack,
       );
+
+      // Provide more specific error messages based on type of error
+      if (error.message.includes('invalid_grant')) {
+        throw new HttpException(
+          'Invalid or expired authorization code',
+          HttpStatus.BAD_REQUEST,
+        );
+      } else if (error.message.includes('Cache service')) {
+        throw new HttpException(
+          'Cache service issue: ' + error.message,
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      } else if (error.message.includes('Token exchange')) {
+        throw new HttpException(
+          'Authorization error: ' + error.message,
+          HttpStatus.BAD_REQUEST,
+        );
+      } else if (error.message.includes('channel info')) {
+        throw new HttpException(
+          'YouTube API error: ' + error.message,
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
+
       throw new HttpException(
-        'Failed to authenticate with YouTube',
+        'Failed to authenticate with YouTube: ' + error.message,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

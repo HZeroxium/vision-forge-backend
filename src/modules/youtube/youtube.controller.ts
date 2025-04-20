@@ -10,12 +10,15 @@ import {
   Req,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { YouTubeService } from './youtube.service';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 
 @Controller('youtube')
 export class YouTubeController {
+  private readonly logger = new Logger(YouTubeController.name);
+
   constructor(private readonly youtubeService: YouTubeService) {}
 
   @UseGuards(JwtAuthGuard)
@@ -37,7 +40,7 @@ export class YouTubeController {
     try {
       // If there's an error parameter in the callback, handle it
       if (error) {
-        console.log(`OAuth error: ${error}`);
+        this.logger.error(`OAuth error: ${error}`);
         if (error === 'access_denied') {
           throw new HttpException(
             'Access denied. You need to be added as a test user in the Google Cloud Console.',
@@ -68,7 +71,9 @@ export class YouTubeController {
       let userId: string;
       try {
         userId = Buffer.from(state, 'base64').toString('utf-8');
+        this.logger.log(`Decoded state parameter to user ID: ${userId}`);
       } catch (e) {
+        this.logger.error(`Error decoding state parameter: ${e.message}`);
         throw new HttpException(
           'Invalid state parameter',
           HttpStatus.BAD_REQUEST,
@@ -77,7 +82,10 @@ export class YouTubeController {
 
       return this.youtubeService.handleCallback(code, userId);
     } catch (error) {
-      console.error(`Error in OAuth callback: ${error.message}`);
+      this.logger.error(
+        `Error in OAuth callback: ${error.message}`,
+        error.stack,
+      );
       throw new HttpException(
         error.message || 'Failed to authenticate with YouTube',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
