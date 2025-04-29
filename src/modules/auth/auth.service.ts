@@ -72,9 +72,38 @@ export class AuthService {
     return null;
   }
 
-  async login(user: any) {
-    const payload = { email: user.email, sub: user.id, role: user.role };
-    return { access_token: this.jwtService.sign(payload) };
+  // async login(user: any) {
+  //   const payload = { email: user.email, sub: user.id, role: user.role };
+  //   return { access_token: this.jwtService.sign(payload) };
+  // }
+
+  async login(credentials: { email: string; password: string }) {
+    console.log(credentials.email);
+    const user = await this.usersService.findByEmail(credentials.email);
+    
+    // Kiểm tra user tồn tại
+    if (!user) {
+      console.log("Email wrong");
+      throw new UnauthorizedException('Invalid email or password');
+    }
+  
+    // So sánh mật khẩu
+    const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+    if (!isPasswordValid) {
+      console.log("Password wrong");
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    
+    // Tạo JWT payload
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+  
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
   }
 
   async validateOAuthLogin(profile: any): Promise<UserEntity> {

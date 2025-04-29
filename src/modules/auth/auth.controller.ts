@@ -33,10 +33,10 @@ export class AuthController {
     return this.authService.register(registerDto);
   }
 
-  @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(@Request() req: any) {
-    return this.authService.login(req.user);
+    console.log(req.body);
+    return this.authService.login(req.body);
   }
 
   @Post('forgot-password')
