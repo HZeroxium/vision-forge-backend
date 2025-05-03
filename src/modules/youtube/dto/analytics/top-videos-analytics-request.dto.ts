@@ -1,14 +1,7 @@
 // /src/modules/youtube/dto/analytics/top-videos-analytics-request.dto.ts
 
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsInt,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { BaseAnalyticsRequestDto } from './common-types.dto';
 

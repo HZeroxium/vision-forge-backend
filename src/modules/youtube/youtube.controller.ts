@@ -13,14 +13,6 @@ import {
 } from '@nestjs/common';
 import { YouTubeService } from './youtube.service';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiQuery,
-  ApiParam,
-  ApiBody,
-} from '@nestjs/swagger';
 
 // Import DTOs
 import { AuthUrlResponseDto } from './dto/auth/auth-url-response.dto';
@@ -37,7 +29,6 @@ import { BaseAnalyticsResponseDto } from './dto/analytics/common-types.dto';
 import { TopVideosAnalyticsResponseDto } from './dto/analytics/top-videos-analytics-response.dto';
 import { DemographicsAnalyticsResponseDto } from './dto/analytics/demographics-analytics-response.dto';
 
-@ApiTags('youtube')
 @Controller('youtube')
 export class YouTubeController {
   private readonly logger = new Logger(YouTubeController.name);
@@ -46,12 +37,6 @@ export class YouTubeController {
 
   @UseGuards(JwtAuthGuard)
   @Get('auth-url')
-  @ApiOperation({ summary: 'Get YouTube OAuth authorization URL' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns the YouTube OAuth URL',
-    type: AuthUrlResponseDto,
-  })
   getAuthUrl(@Req() req: { user: { userId: string } }): AuthUrlResponseDto {
     return {
       url: this.youtubeService.getAuthUrl(req.user.userId),
@@ -60,14 +45,6 @@ export class YouTubeController {
 
   // Public callback endpoint that doesn't require authentication
   @Get('public-callback')
-  @ApiOperation({ summary: 'Handle YouTube OAuth callback (public)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Authentication successful',
-    type: CallbackResponseDto,
-  })
-  @ApiResponse({ status: 400, description: 'Invalid request parameters' })
-  @ApiResponse({ status: 403, description: 'Access denied' })
   async handlePublicCallback(
     @Query() query: CallbackRequestDto,
   ): Promise<CallbackResponseDto> {
@@ -130,12 +107,6 @@ export class YouTubeController {
   // Keep the existing protected endpoint for backward compatibility
   @UseGuards(JwtAuthGuard)
   @Get('callback')
-  @ApiOperation({ summary: 'Handle YouTube OAuth callback (authenticated)' })
-  @ApiResponse({
-    status: 200,
-    description: 'Authentication successful',
-    type: CallbackResponseDto,
-  })
   async handleCallback(
     @Query() query: CallbackRequestDto,
     @Req() req: { user: { userId: string } },
@@ -178,13 +149,6 @@ export class YouTubeController {
 
   @UseGuards(JwtAuthGuard)
   @Post('upload')
-  @ApiOperation({ summary: 'Upload a video to YouTube' })
-  @ApiBody({ type: UploadVideoRequestDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Video uploaded successfully',
-    type: UploadVideoResponseDto,
-  })
   async uploadVideo(
     @Body() uploadVideoDto: UploadVideoRequestDto,
     @Req() req: { user: { userId: string } },
@@ -202,17 +166,6 @@ export class YouTubeController {
 
   @UseGuards(JwtAuthGuard)
   @Get('statistics/:publishingHistoryId')
-  @ApiOperation({ summary: 'Get statistics for a YouTube video' })
-  @ApiParam({
-    name: 'publishingHistoryId',
-    description: 'ID of the publishing history record',
-    example: 'd6edcf90-707e-4f03-a3de-593204ccef45',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Video statistics retrieved successfully',
-    type: VideoStatisticsResponseDto,
-  })
   async getStatistics(
     @Param('publishingHistoryId') publishingHistoryId: string,
   ): Promise<VideoStatisticsResponseDto> {
@@ -221,17 +174,6 @@ export class YouTubeController {
 
   @UseGuards(JwtAuthGuard)
   @Get('analytics/video/:videoId')
-  @ApiOperation({ summary: 'Get analytics for a specific YouTube video' })
-  @ApiParam({
-    name: 'videoId',
-    description: 'YouTube video ID',
-    example: 'dQw4w9WgXcQ',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Video analytics retrieved successfully',
-    type: BaseAnalyticsResponseDto,
-  })
   async getVideoAnalytics(
     @Param('videoId') videoId: string,
     @Query() query: VideoAnalyticsRequestDto,
@@ -260,12 +202,6 @@ export class YouTubeController {
 
   @UseGuards(JwtAuthGuard)
   @Get('analytics/channel')
-  @ApiOperation({ summary: 'Get analytics for your YouTube channel' })
-  @ApiResponse({
-    status: 200,
-    description: 'Channel analytics retrieved successfully',
-    type: BaseAnalyticsResponseDto,
-  })
   async getChannelAnalytics(
     @Query() query: ChannelAnalyticsRequestDto,
     @Req() req: { user: { userId: string } },
@@ -292,12 +228,6 @@ export class YouTubeController {
 
   @UseGuards(JwtAuthGuard)
   @Get('analytics/top-videos')
-  @ApiOperation({ summary: 'Get analytics for your top YouTube videos' })
-  @ApiResponse({
-    status: 200,
-    description: 'Top videos analytics retrieved successfully',
-    type: TopVideosAnalyticsResponseDto,
-  })
   async getTopVideosAnalytics(
     @Query() query: TopVideosAnalyticsRequestDto,
     @Req() req: { user: { userId: string } },
@@ -324,14 +254,6 @@ export class YouTubeController {
 
   @UseGuards(JwtAuthGuard)
   @Get('analytics/demographics')
-  @ApiOperation({
-    summary: 'Get demographics analytics for your YouTube channel',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Demographics analytics retrieved successfully',
-    type: DemographicsAnalyticsResponseDto,
-  })
   async getDemographicsAnalytics(
     @Query() query: BaseAnalyticsRequestDto,
     @Req() req: { user: { userId: string } },

@@ -7,6 +7,7 @@ import { lastValueFrom } from 'rxjs';
 import { createReadStream } from 'fs';
 import { CacheService } from '@common/cache/cache.service';
 import { YouTubeAuthService } from './youtube-auth.service';
+import { VideoStatus } from '@prisma/client';
 
 @Injectable()
 export class YouTubeVideoService {
@@ -47,37 +48,62 @@ export class YouTubeVideoService {
       // Download video to temporary file
       const videoPath = await this.downloadVideo(video.url);
 
-      // Upload to YouTube
-      const res = await youtube.videos.insert({
-        part: 'snippet,status',
-        requestBody: {
-          snippet: {
-            title,
-            description,
-            tags,
-            categoryId: '22', // People & Blogs category
+      let youtubeVideoId;
+      let publishingHistory;
+
+      // Use transaction to ensure database consistency
+      await this.prisma.$transaction(async (prisma) => {
+        // Upload to YouTube (không thể đưa API call vào transaction, nhưng chúng ta có thể xử lý kết quả trong transaction)
+        const res = await youtube.videos.insert({
+          part: 'snippet,status',
+          requestBody: {
+            snippet: {
+              title,
+              description,
+              tags,
+              categoryId: '22', // People & Blogs category
+            },
+            status: {
+              privacyStatus,
+            },
           },
-          status: {
-            privacyStatus,
+          media: {
+            body: createReadStream(videoPath),
           },
-        },
-        media: {
-          body: createReadStream(videoPath),
-        },
+        });
+
+        youtubeVideoId = res.data.id;
+
+        // Save publishing history within the transaction
+        publishingHistory = await prisma.publishingHistory.create({
+          data: {
+            videoId,
+            platform: 'YOUTUBE',
+            platformVideoId: youtubeVideoId,
+            publishStatus: 'success',
+            publishLogs: res.data,
+          },
+        });
+
+        // Update video status to PUBLISHED
+        await prisma.video.update({
+          where: { id: videoId },
+          data: { status: VideoStatus.PUBLISHED },
+        });
+
+        this.logger.log(`Video ${videoId} status updated to PUBLISHED`);
       });
 
-      const youtubeVideoId = res.data.id;
-
-      // Save publishing history in database
-      const publishingHistory = await this.prisma.publishingHistory.create({
-        data: {
-          videoId,
-          platform: 'YOUTUBE',
-          platformVideoId: youtubeVideoId,
-          publishStatus: 'success',
-          publishLogs: res.data,
-        },
-      });
+      // Xóa file tạm sau khi đã upload xong
+      try {
+        const fs = require('fs');
+        fs.unlinkSync(videoPath);
+        this.logger.debug(`Temporary file ${videoPath} removed successfully`);
+      } catch (unlinkError) {
+        this.logger.warn(
+          `Failed to remove temporary file: ${unlinkError.message}`,
+        );
+      }
 
       return {
         success: true,
@@ -90,6 +116,22 @@ export class YouTubeVideoService {
         `Error uploading to YouTube: ${error.message}`,
         error.stack,
       );
+
+      // Nếu lỗi xảy ra, đảm bảo rằng chúng ta không để video trong trạng thái không nhất quán
+      try {
+        await this.prisma.video.update({
+          where: { id: videoId },
+          data: { status: VideoStatus.COMPLETED },
+        });
+        this.logger.log(
+          `Reset video ${videoId} status to COMPLETED due to upload error`,
+        );
+      } catch (resetError) {
+        this.logger.error(
+          `Failed to reset video status: ${resetError.message}`,
+        );
+      }
+
       throw new HttpException(
         'Failed to upload video to YouTube',
         HttpStatus.INTERNAL_SERVER_ERROR,
