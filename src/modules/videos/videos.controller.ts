@@ -20,6 +20,12 @@ import { VideoResponseDto } from './dto/video-response.dto';
 import { VideosPaginationDto } from './dto/videos-pagination.dto';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 
+interface RequestWithUser {
+  user: {
+    userId: string;
+  };
+}
+
 @Controller('videos')
 export class VideosController {
   constructor(private readonly videosService: VideosService) {}
@@ -32,7 +38,7 @@ export class VideosController {
   @Post()
   async createVideo(
     @Body() createVideoDto: CreateVideoDto,
-    @Req() req: any,
+    @Req() req: RequestWithUser,
   ): Promise<VideoResponseDto> {
     return this.videosService.createVideo(createVideoDto, req.user.userId);
   }
@@ -46,8 +52,9 @@ export class VideosController {
     page: number = 1,
     @Query('limit', new DefaultValuePipe(10), new ParseIntPipe())
     limit: number = 10,
+    @Query('userId') userId?: string,
   ): Promise<VideosPaginationDto> {
-    return this.videosService.findAll(page, limit);
+    return this.videosService.findAll(page, limit, userId);
   }
 
   /**
@@ -61,19 +68,40 @@ export class VideosController {
   /**
    * Update an existing video asset.
    */
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async update(
     @Param('id') id: string,
     @Body() updateVideoDto: UpdateVideoDto,
+    @Req() req: RequestWithUser,
   ): Promise<VideoResponseDto> {
-    return this.videosService.update(id, updateVideoDto);
+    return this.videosService.update(id, updateVideoDto, req.user.userId);
   }
 
   /**
    * Soft delete a video asset.
    */
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  async remove(@Param('id') id: string): Promise<VideoResponseDto> {
-    return this.videosService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @Req() req: RequestWithUser,
+  ): Promise<VideoResponseDto> {
+    return this.videosService.remove(id, req.user.userId);
+  }
+
+  /**
+   * Get current user's videos.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('user/me')
+  async findMyVideos(
+    @Query('page', new DefaultValuePipe(1), new ParseIntPipe())
+    page: number = 1,
+    @Query('limit', new DefaultValuePipe(10), new ParseIntPipe())
+    limit: number = 10,
+    @Req() req: RequestWithUser,
+  ): Promise<VideosPaginationDto> {
+    return this.videosService.findAll(page, limit, req.user.userId);
   }
 }

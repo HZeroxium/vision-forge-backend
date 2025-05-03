@@ -13,5 +13,4 @@ export class VideoStatisticsResponseDto {
   statistics: VideoStatisticsDto;
   youtubeVideoId: string;
   youtubeUrl: string;
-  allStats?: Record<string, any>;
 }

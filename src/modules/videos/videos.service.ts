@@ -6,6 +6,7 @@ import {
   HttpException,
   HttpStatus,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
@@ -123,17 +124,20 @@ export class VideosService {
    *
    * @param page - Page number (default 1).
    * @param limit - Number of records per page (default 10).
+   * @param userId - Optional filter by user ID.
    * @returns Paginated video assets as VideosPaginationDto.
    */
   async findAll(
     page: number = 1,
     limit: number = 10,
+    userId?: string,
   ): Promise<VideosPaginationDto> {
     const cacheKey = generateCacheKey([
       'videos',
       'findAll',
       page.toString(),
       limit.toString(),
+      userId || 'all',
     ]);
 
     // Sử dụng DATA cache type
@@ -144,14 +148,21 @@ export class VideosService {
     }
 
     const skip = (page - 1) * limit;
+
+    // Add userId filter if provided
+    const whereClause: any = { deletedAt: null };
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
     const [videos, totalCount] = await this.prisma.$transaction([
       this.prisma.video.findMany({
-        where: { deletedAt: null },
+        where: whereClause,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
-      this.prisma.video.count({ where: { deletedAt: null } }),
+      this.prisma.video.count({ where: whereClause }),
     ]);
     const totalPages = Math.ceil(totalCount / limit);
     const videoResponses = videos.map((video) =>
@@ -189,19 +200,37 @@ export class VideosService {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
     }
+
     const video = await this.prisma.video.findUnique({
       where: { id, deletedAt: null },
+      include: {
+        publishingHistories: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
+      },
     });
+
     if (!video) {
       throw new NotFoundException(`Video with ID ${id} not found.`);
     }
+
     const response = this.mapVideoToResponse(video);
+
+    // Add the publishing history ID if available
+    if (video.publishingHistories && video.publishingHistories.length > 0) {
+      response.publishingHistoryId = video.publishingHistories[0].id;
+    }
+
     await this.cacheService.setCache(
       cacheKey,
       JSON.stringify(response),
       undefined,
       CacheType.DATA,
     );
+
     return response;
   }
 
@@ -211,22 +240,34 @@ export class VideosService {
    *
    * @param id - The ID of the video to update.
    * @param updateVideoDto - DTO containing update fields.
+   * @param userId - The ID of the user making the request.
    * @returns The updated video asset as VideoResponseDto.
    */
   async update(
     id: string,
     updateVideoDto: UpdateVideoDto,
+    userId: string,
   ): Promise<VideoResponseDto> {
     const video = await this.prisma.video.findUnique({
       where: { id, deletedAt: null },
     });
+
     if (!video) {
       throw new NotFoundException(`Video with ID ${id} not found.`);
     }
+
+    // Check if the user owns the video
+    if (video.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to update this video',
+      );
+    }
+
     const updatedVideo = await this.prisma.video.update({
       where: { id },
       data: updateVideoDto,
     });
+
     // Invalidate cache for this video and common pagination keys.
     await this.cacheService.deleteCache(
       generateCacheKey(['videos', 'findOne', id]),
@@ -234,6 +275,10 @@ export class VideosService {
     await this.cacheService.deleteCache(
       generateCacheKey(['videos', 'findAll', '1', '10']),
     );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['videos', 'findAll', '1', '10', userId]),
+    );
+
     return this.mapVideoToResponse(updatedVideo);
   }
 
@@ -242,19 +287,30 @@ export class VideosService {
    * Invalidates related cache keys after deletion.
    *
    * @param id - The ID of the video to delete.
+   * @param userId - The ID of the user making the request.
    * @returns The soft-deleted video asset as VideoResponseDto.
    */
-  async remove(id: string): Promise<VideoResponseDto> {
+  async remove(id: string, userId: string): Promise<VideoResponseDto> {
     const video = await this.prisma.video.findUnique({
       where: { id, deletedAt: null },
     });
+
     if (!video) {
       throw new NotFoundException(`Video with ID ${id} not found.`);
     }
+
+    // Check if the user owns the video
+    if (video.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to delete this video',
+      );
+    }
+
     const deletedVideo = await this.prisma.video.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
+
     // Invalidate cache for this video and common pagination keys.
     await this.cacheService.deleteCache(
       generateCacheKey(['videos', 'findOne', id]),
@@ -262,6 +318,10 @@ export class VideosService {
     await this.cacheService.deleteCache(
       generateCacheKey(['videos', 'findAll', '1', '10']),
     );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['videos', 'findAll', '1', '10', userId]),
+    );
+
     return this.mapVideoToResponse(deletedVideo);
   }
 

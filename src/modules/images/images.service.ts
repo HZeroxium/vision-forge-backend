@@ -6,6 +6,7 @@ import {
   HttpException,
   HttpStatus,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreateImageDto } from './dto/create-image.dto';
 import { UpdateImageDto } from './dto/update-image.dto';
@@ -109,17 +110,21 @@ export class ImagesService {
    * Uses caching to reduce database load.
    * @param page - Page number (default 1).
    * @param limit - Number of images per page (default 10).
+   * @param userId - Optional filter by user ID.
    */
   async findAll(
     page: number = 1,
     limit: number = 10,
+    userId?: string,
   ): Promise<ImagesPaginationDto> {
     const cacheKey = generateCacheKey([
       'images',
       'findAll',
       page.toString(),
       limit.toString(),
+      userId || 'all',
     ]);
+
     const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
@@ -127,14 +132,21 @@ export class ImagesService {
     }
 
     const skip = (page - 1) * limit;
+
+    // Add userId filter if provided
+    const whereClause: any = { deletedAt: null };
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
     const [images, totalCount] = await this.prisma.$transaction([
       this.prisma.image.findMany({
-        where: { deletedAt: null },
+        where: whereClause,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
-      this.prisma.image.count({ where: { deletedAt: null } }),
+      this.prisma.image.count({ where: whereClause }),
     ]);
     const totalPages = Math.ceil(totalCount / limit);
     const imageResponses = images.map((image) =>
@@ -190,27 +202,44 @@ export class ImagesService {
    * Invalidate related cache keys after update.
    * @param id - The ID of the image to update.
    * @param updateImageDto - DTO containing update fields.
+   * @param userId - The ID of the user making the request.
    */
   async update(
     id: string,
     updateImageDto: UpdateImageDto,
+    userId: string,
   ): Promise<ImageResponseDto> {
     const image = await this.prisma.image.findUnique({
       where: { id, deletedAt: null },
     });
+
     if (!image) {
       throw new NotFoundException(`Image with ID ${id} not found.`);
     }
+
+    // Check if the user owns the image
+    if (image.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to update this image',
+      );
+    }
+
     const updatedImage = await this.prisma.image.update({
       where: { id },
       data: updateImageDto,
     });
+
+    // Invalidate cache
     await this.cacheService.deleteCache(
       generateCacheKey(['images', 'findOne', id]),
     );
     await this.cacheService.deleteCache(
       generateCacheKey(['images', 'findAll', '1', '10']),
     );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['images', 'findAll', '1', '10', userId]),
+    );
+
     return this.mapImageToResponse(updatedImage);
   }
 
@@ -218,24 +247,40 @@ export class ImagesService {
    * Soft deletes an image asset.
    * Invalidate related cache keys after deletion.
    * @param id - The ID of the image to delete.
+   * @param userId - The ID of the user making the request.
    */
-  async remove(id: string): Promise<ImageResponseDto> {
+  async remove(id: string, userId: string): Promise<ImageResponseDto> {
     const image = await this.prisma.image.findUnique({
       where: { id, deletedAt: null },
     });
+
     if (!image) {
       throw new NotFoundException(`Image with ID ${id} not found.`);
     }
+
+    // Check if the user owns the image
+    if (image.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to delete this image',
+      );
+    }
+
     const deletedImage = await this.prisma.image.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
+
+    // Invalidate cache
     await this.cacheService.deleteCache(
       generateCacheKey(['images', 'findOne', id]),
     );
     await this.cacheService.deleteCache(
       generateCacheKey(['images', 'findAll', '1', '10']),
     );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['images', 'findAll', '1', '10', userId]),
+    );
+
     return this.mapImageToResponse(deletedImage);
   }
 }
