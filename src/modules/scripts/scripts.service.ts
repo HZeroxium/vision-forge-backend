@@ -9,7 +9,6 @@ import {
 import { CreateScriptDto } from './dto/create-script.dto';
 import { UpdateScriptDto } from './dto/update-script.dto';
 import { PrismaService } from '@database/prisma.service';
-import { ConfigService } from '@nestjs/config';
 import { ScriptsPaginationDto } from './dto/scripts-pagination.dto';
 import { ScriptResponseDto } from './dto/script-response.dto';
 import { AppLoggerService } from '@common/logger/logger.service';

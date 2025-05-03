@@ -1,7 +1,7 @@
 // modules/youtube/dto/upload-video.dto.ts
 import { IsString, IsArray, IsEnum, IsNotEmpty } from 'class-validator';
 
-export class UploadVideoDto {
+export class UploadVideoRequestDto {
   @IsString()
   @IsNotEmpty()
   videoId: string;
