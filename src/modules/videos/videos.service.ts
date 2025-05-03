@@ -31,9 +31,10 @@ export class VideosService {
 
   /**
    * Maps a Prisma Video record to VideoResponseDto.
+   * Now supports including publishing history data when available.
    */
   mapVideoToResponse(video: any): VideoResponseDto {
-    return {
+    const response: VideoResponseDto = {
       id: video.id,
       userId: video.userId,
       scriptId: video.scriptId,
@@ -43,6 +44,13 @@ export class VideosService {
       createdAt: video.createdAt,
       updatedAt: video.updatedAt,
     };
+
+    // Add publishing history ID if it exists in the video object
+    if (video.publishingHistories && video.publishingHistories.length > 0) {
+      response.publishingHistoryId = video.publishingHistories[0].id;
+    }
+
+    return response;
   }
 
   /**
@@ -161,13 +169,23 @@ export class VideosService {
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
+        include: {
+          publishingHistories: {
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
+          },
+        },
       }),
       this.prisma.video.count({ where: whereClause }),
     ]);
+
     const totalPages = Math.ceil(totalCount / limit);
     const videoResponses = videos.map((video) =>
       this.mapVideoToResponse(video),
     );
+
     const result: VideosPaginationDto = {
       totalCount,
       page,
@@ -183,6 +201,7 @@ export class VideosService {
       undefined,
       CacheType.DATA,
     );
+
     return result;
   }
 
@@ -331,26 +350,40 @@ export class VideosService {
       'findOneByScriptId',
       scriptId,
     ]);
+
     const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
     }
+
     const video = await this.prisma.video.findFirst({
       where: { scriptId, deletedAt: null },
+      include: {
+        publishingHistories: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
+      },
     });
+
     if (!video) {
       throw new NotFoundException(
         `Video with Script ID ${scriptId} not found.`,
       );
     }
+
     const response = this.mapVideoToResponse(video);
+
     await this.cacheService.setCache(
       cacheKey,
       JSON.stringify(response),
       undefined,
       CacheType.DATA,
     );
+
     return response;
   }
 }
