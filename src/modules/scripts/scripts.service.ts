@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreateScriptDto } from './dto/create-script.dto';
 import { UpdateScriptDto } from './dto/update-script.dto';
@@ -18,7 +19,7 @@ import {
   CreateScriptResponse,
 } from '@ai/dto/fastapi.dto';
 import { CreateImagePromptsDto } from './dto/create-image-prompts.dto';
-import { CacheService } from '@/common/cache/cache.service';
+import { CacheService, CacheType } from '@/common/cache/cache.service';
 import { generateCacheKey } from '@/common/cache/utils';
 
 @Injectable()
@@ -157,36 +158,55 @@ export class ScriptsService {
     }
   }
 
+  /**
+   * Retrieves a paginated list of scripts with optional filtering by userId
+   * @param page - Page number
+   * @param limit - Number of items per page
+   * @param userId - Optional user ID to filter scripts by creator
+   */
   async findAll(
     page: number = 1,
     limit: number = 10,
+    userId?: string,
   ): Promise<ScriptsPaginationDto> {
+    // Build cache key including userId if provided
     const cacheKey = generateCacheKey([
       'scripts',
       'findAll',
       page.toString(),
       limit.toString(),
+      userId || 'all',
     ]);
-    const cached = await this.cacheService.getCache(cacheKey);
+
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
     }
 
     const skip = (page - 1) * limit;
+
+    // Build where clause, adding userId filter if provided
+    const whereClause: any = { deletedAt: null };
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
     const [scripts, totalCount] = await this.prisma.$transaction([
       this.prisma.script.findMany({
-        where: { deletedAt: null },
+        where: whereClause,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
-      this.prisma.script.count({ where: { deletedAt: null } }),
+      this.prisma.script.count({ where: whereClause }),
     ]);
+
     const totalPages = Math.ceil(totalCount / limit);
     const scriptResponses = scripts.map((script) =>
       this.mapScriptToResponse(script),
     );
+
     const result: ScriptsPaginationDto = {
       totalCount,
       page,
@@ -194,13 +214,20 @@ export class ScriptsService {
       totalPages,
       scripts: scriptResponses,
     };
-    await this.cacheService.setCache(cacheKey, JSON.stringify(result));
+
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(result),
+      undefined,
+      CacheType.DATA,
+    );
+
     return result;
   }
 
   async findOne(id: string): Promise<ScriptResponseDto> {
     const cacheKey = generateCacheKey(['scripts', 'findOne', id]);
-    const cached = await this.cacheService.getCache(cacheKey);
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
@@ -212,52 +239,101 @@ export class ScriptsService {
       throw new NotFoundException(`Script with ID ${id} not found`);
     }
     const response = this.mapScriptToResponse(script);
-    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(response),
+      undefined,
+      CacheType.DATA,
+    );
     return response;
   }
 
+  /**
+   * Updates a script, ensuring the user has permission
+   * @param id - Script ID
+   * @param updateScriptDto - Update data
+   * @param userId - User ID of the requester
+   */
   async update(
     id: string,
     updateScriptDto: UpdateScriptDto,
+    userId: string,
   ): Promise<ScriptResponseDto> {
     const script = await this.prisma.script.findUnique({
       where: { id, deletedAt: null },
     });
+
     if (!script) {
       throw new NotFoundException(`Script with ID ${id} not found`);
     }
+
+    // Check if the user is the creator of the script
+    if (script.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to update this script',
+      );
+    }
+
     const updatedScript = await this.prisma.script.update({
       where: { id },
       data: updateScriptDto,
     });
-    // Invalidate cache for this script and general pagination.
+
+    // Invalidate cache for this script and all pagination results
     await this.cacheService.deleteCache(
       generateCacheKey(['scripts', 'findOne', id]),
     );
+
+    // Clear both all users' scripts cache and this specific user's scripts cache
     await this.cacheService.deleteCache(
-      generateCacheKey(['scripts', 'findAll', '1', '10']),
+      generateCacheKey(['scripts', 'findAll', '1', '10', 'all']),
     );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['scripts', 'findAll', '1', '10', userId]),
+    );
+
     return this.mapScriptToResponse(updatedScript);
   }
 
-  async remove(id: string): Promise<ScriptResponseDto> {
+  /**
+   * Removes a script (soft delete), ensuring the user has permission
+   * @param id - Script ID
+   * @param userId - User ID of the requester
+   */
+  async remove(id: string, userId: string): Promise<ScriptResponseDto> {
     const script = await this.prisma.script.findUnique({
       where: { id, deletedAt: null },
     });
+
     if (!script) {
       throw new NotFoundException(`Script with ID ${id} not found`);
     }
+
+    // Check if the user is the creator of the script
+    if (script.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to delete this script',
+      );
+    }
+
     const deletedScript = await this.prisma.script.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
-    // Invalidate cache for this script and general pagination.
+
+    // Invalidate cache for this script and all pagination results
     await this.cacheService.deleteCache(
       generateCacheKey(['scripts', 'findOne', id]),
     );
+
+    // Clear both all users' scripts cache and this specific user's scripts cache
     await this.cacheService.deleteCache(
-      generateCacheKey(['scripts', 'findAll', '1', '10']),
+      generateCacheKey(['scripts', 'findAll', '1', '10', 'all']),
     );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['scripts', 'findAll', '1', '10', userId]),
+    );
+
     return this.mapScriptToResponse(deletedScript);
   }
 }

@@ -14,7 +14,7 @@ import { AudioResponseDto } from './dto/audio-response.dto';
 import { AudiosPaginationDto } from './dto/audios-pagination.dto';
 import { TTSProvider } from '@prisma/client';
 import { ScriptsService } from '@scripts/scripts.service';
-import { CacheService } from '@/common/cache/cache.service';
+import { CacheService, CacheType } from '@/common/cache/cache.service';
 import { generateCacheKey } from '@/common/cache/utils';
 import { AppLoggerService } from '@/common/logger/logger.service';
 
@@ -132,7 +132,7 @@ export class AudiosService {
       page.toString(),
       limit.toString(),
     ]);
-    const cached = await this.cacheService.getCache(cacheKey);
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
@@ -159,7 +159,12 @@ export class AudiosService {
       totalPages,
       audios: audioResponses,
     };
-    await this.cacheService.setCache(cacheKey, JSON.stringify(result));
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(result),
+      undefined,
+      CacheType.DATA,
+    );
     return result;
   }
 
@@ -172,7 +177,7 @@ export class AudiosService {
    */
   async findOne(id: string): Promise<AudioResponseDto> {
     const cacheKey = generateCacheKey(['audios', 'findOne', id]);
-    const cached = await this.cacheService.getCache(cacheKey);
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
@@ -184,7 +189,12 @@ export class AudiosService {
       throw new NotFoundException(`Audio with ID ${id} not found.`);
     }
     const response = this.mapAudioToResponse(audio);
-    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(response),
+      undefined,
+      CacheType.DATA,
+    );
     return response;
   }
 

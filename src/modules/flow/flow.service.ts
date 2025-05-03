@@ -63,9 +63,13 @@ export class FlowService {
     // Check if the concactenation of scripts is not equal to the original script. Update the script content if needed.
     const concatenatedScripts = scripts.join(' ');
     if (concatenatedScripts !== script.content) {
-      await this.scriptsService.update(scriptId, {
-        content: concatenatedScripts,
-      });
+      await this.scriptsService.update(
+        scriptId,
+        {
+          content: concatenatedScripts,
+        },
+        userId,
+      );
     }
 
     this.logger.log(

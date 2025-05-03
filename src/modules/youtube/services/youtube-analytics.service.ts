@@ -1,7 +1,7 @@
 // /src/modules/youtube/services/youtube-analytics.service.ts
 
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
-import { CacheService } from '@common/cache/cache.service';
+import { CacheService, CacheType } from '@common/cache/cache.service';
 import { YouTubeAuthService } from './youtube-auth.service';
 import { YouTubeVideoService } from './youtube-video.service';
 import { YouTubeFormatterService } from './youtube-formatter.service';
@@ -67,8 +67,11 @@ export class YouTubeAnalyticsService {
       // Generate a cache key
       const cacheKey = `${this.ANALYTICS_CACHE_PREFIX}video:${videoId}:${metrics}:${startDate}:${endDate}:${dimensions}`;
 
-      // Try to get from cache first
-      const cachedAnalytics = await this.cacheService.getCache(cacheKey);
+      // Try to get from cache first with AUTH type
+      const cachedAnalytics = await this.cacheService.getCache(
+        cacheKey,
+        CacheType.AUTH,
+      );
       if (cachedAnalytics) {
         return JSON.parse(cachedAnalytics);
       }
@@ -102,11 +105,12 @@ export class YouTubeAnalyticsService {
         dimensions,
       );
 
-      // Cache the result for 30 minutes
+      // Cache the result for 30 minutes with AUTH type
       await this.cacheService.setCache(
         cacheKey,
         JSON.stringify(result),
         1800, // 30 minutes
+        CacheType.AUTH,
       );
 
       return result;
@@ -136,8 +140,11 @@ export class YouTubeAnalyticsService {
       // Generate a cache key
       const cacheKey = `${this.ANALYTICS_CACHE_PREFIX}channel:${userId}:${metrics}:${startDate}:${endDate}:${dimensions}`;
 
-      // Try to get from cache first
-      const cachedAnalytics = await this.cacheService.getCache(cacheKey);
+      // Try to get from cache first with AUTH type
+      const cachedAnalytics = await this.cacheService.getCache(
+        cacheKey,
+        CacheType.AUTH,
+      );
       if (cachedAnalytics) {
         return JSON.parse(cachedAnalytics);
       }
@@ -170,11 +177,12 @@ export class YouTubeAnalyticsService {
         dimensions,
       );
 
-      // Cache the result
+      // Cache the result for 30 minutes with AUTH type
       await this.cacheService.setCache(
         cacheKey,
         JSON.stringify(result),
         1800, // 30 minutes
+        CacheType.AUTH,
       );
 
       return result;
@@ -204,8 +212,11 @@ export class YouTubeAnalyticsService {
       // Generate a cache key
       const cacheKey = `${this.ANALYTICS_CACHE_PREFIX}top-videos:${userId}:${limit}:${metrics}:${startDate}:${endDate}`;
 
-      // Try to get from cache first
-      const cachedAnalytics = await this.cacheService.getCache(cacheKey);
+      // Try to get from cache first with AUTH type
+      const cachedAnalytics = await this.cacheService.getCache(
+        cacheKey,
+        CacheType.AUTH,
+      );
       if (cachedAnalytics) {
         return JSON.parse(cachedAnalytics);
       }
@@ -251,11 +262,12 @@ export class YouTubeAnalyticsService {
         );
       }
 
-      // Cache the result
+      // Cache the result for 1 hour with AUTH type
       await this.cacheService.setCache(
         cacheKey,
         JSON.stringify(result),
         3600, // 1 hour
+        CacheType.AUTH,
       );
 
       return result;
@@ -283,8 +295,11 @@ export class YouTubeAnalyticsService {
       // Generate a cache key
       const cacheKey = `${this.ANALYTICS_CACHE_PREFIX}demographics:${userId}:${startDate}:${endDate}`;
 
-      // Try to get from cache first
-      const cachedAnalytics = await this.cacheService.getCache(cacheKey);
+      // Try to get from cache first with AUTH type
+      const cachedAnalytics = await this.cacheService.getCache(
+        cacheKey,
+        CacheType.AUTH,
+      );
       if (cachedAnalytics) {
         return JSON.parse(cachedAnalytics);
       }
@@ -311,11 +326,12 @@ export class YouTubeAnalyticsService {
         response.data,
       );
 
-      // Cache the result
+      // Cache the result for 24 hours with AUTH type
       await this.cacheService.setCache(
         cacheKey,
         JSON.stringify(result),
         86400, // 24 hours
+        CacheType.AUTH,
       );
 
       return result;

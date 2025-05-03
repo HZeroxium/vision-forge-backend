@@ -16,7 +16,7 @@ import { VideosPaginationDto } from './dto/videos-pagination.dto';
 import { VideoStatus } from '@prisma/client';
 import { CreateVideoResponse } from 'src/ai/dto/fastapi.dto';
 import { AppLoggerService } from '@common/logger/logger.service';
-import { CacheService } from '@/common/cache/cache.service';
+import { CacheService, CacheType } from '@/common/cache/cache.service';
 import { generateCacheKey } from '@/common/cache/utils';
 
 @Injectable()
@@ -135,7 +135,9 @@ export class VideosService {
       page.toString(),
       limit.toString(),
     ]);
-    const cached = await this.cacheService.getCache(cacheKey);
+
+    // Sử dụng DATA cache type
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
@@ -163,7 +165,13 @@ export class VideosService {
       videos: videoResponses,
     };
 
-    await this.cacheService.setCache(cacheKey, JSON.stringify(result));
+    // Sử dụng DATA cache type khi lưu kết quả
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(result),
+      undefined,
+      CacheType.DATA,
+    );
     return result;
   }
 
@@ -176,7 +184,7 @@ export class VideosService {
    */
   async findOne(id: string): Promise<VideoResponseDto> {
     const cacheKey = generateCacheKey(['videos', 'findOne', id]);
-    const cached = await this.cacheService.getCache(cacheKey);
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
@@ -188,7 +196,12 @@ export class VideosService {
       throw new NotFoundException(`Video with ID ${id} not found.`);
     }
     const response = this.mapVideoToResponse(video);
-    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(response),
+      undefined,
+      CacheType.DATA,
+    );
     return response;
   }
 
@@ -258,7 +271,7 @@ export class VideosService {
       'findOneByScriptId',
       scriptId,
     ]);
-    const cached = await this.cacheService.getCache(cacheKey);
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
@@ -272,7 +285,12 @@ export class VideosService {
       );
     }
     const response = this.mapVideoToResponse(video);
-    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(response),
+      undefined,
+      CacheType.DATA,
+    );
     return response;
   }
 }

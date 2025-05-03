@@ -13,7 +13,7 @@ import { PrismaService } from '@database/prisma.service';
 import { AIService } from '@ai/ai.service';
 import { ImageResponseDto } from './dto/image-response.dto';
 import { ImagesPaginationDto } from './dto/images-pagination.dto';
-import { CacheService } from '@/common/cache/cache.service';
+import { CacheService, CacheType } from '@/common/cache/cache.service';
 import { generateCacheKey } from '@/common/cache/utils';
 import { AppLoggerService } from '@/common/logger/logger.service';
 
@@ -120,7 +120,7 @@ export class ImagesService {
       page.toString(),
       limit.toString(),
     ]);
-    const cached = await this.cacheService.getCache(cacheKey);
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
@@ -148,7 +148,12 @@ export class ImagesService {
       images: imageResponses,
     };
 
-    await this.cacheService.setCache(cacheKey, JSON.stringify(result));
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(result),
+      undefined,
+      CacheType.DATA,
+    );
     return result;
   }
 
@@ -159,7 +164,7 @@ export class ImagesService {
    */
   async findOne(id: string): Promise<ImageResponseDto> {
     const cacheKey = generateCacheKey(['images', 'findOne', id]);
-    const cached = await this.cacheService.getCache(cacheKey);
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
@@ -171,7 +176,12 @@ export class ImagesService {
       throw new NotFoundException(`Image with ID ${id} not found.`);
     }
     const response = this.mapImageToResponse(image);
-    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(response),
+      undefined,
+      CacheType.DATA,
+    );
     return response;
   }
 

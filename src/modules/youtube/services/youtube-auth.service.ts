@@ -2,7 +2,7 @@
 
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CacheService } from '@common/cache/cache.service';
+import { CacheService, CacheType } from '@common/cache/cache.service';
 import { google } from 'googleapis';
 
 @Injectable()
@@ -155,12 +155,14 @@ export class YouTubeAuthService {
           )
         : 3600;
 
+      // Use AUTH Cache instead of regular cache
       try {
         this.logger.log(`Storing token data in cache with TTL: ${ttl}s`);
         await this.cacheService.setCache(
           `${this.OAUTH_CACHE_PREFIX}${userId}`,
           JSON.stringify(tokenData),
           ttl,
+          CacheType.AUTH, // Specify this is AUTH cache
         );
         this.logger.log('Successfully stored tokens in cache');
       } catch (cacheError) {
@@ -250,6 +252,7 @@ export class YouTubeAuthService {
   async getUserCredentials(userId: string) {
     const tokenDataStr = await this.cacheService.getCache(
       `${this.OAUTH_CACHE_PREFIX}${userId}`,
+      CacheType.AUTH, // Specify this is AUTH cache
     );
     if (!tokenDataStr) {
       throw new HttpException(
@@ -267,6 +270,7 @@ export class YouTubeAuthService {
   private async refreshTokenIfNeeded(userId: string): Promise<void> {
     const tokenDataStr = await this.cacheService.getCache(
       `${this.OAUTH_CACHE_PREFIX}${userId}`,
+      CacheType.AUTH, // Specify this is AUTH cache
     );
 
     if (!tokenDataStr) {
@@ -305,11 +309,12 @@ export class YouTubeAuthService {
             )
           : 3600;
 
-        // Update in Redis
+        // Update in Redis with AUTH cache
         await this.cacheService.setCache(
           `${this.OAUTH_CACHE_PREFIX}${userId}`,
           JSON.stringify(newTokenData),
           newTtl,
+          CacheType.AUTH,
         );
       } catch (error) {
         this.logger.error(`Error refreshing token: ${error.message}`);

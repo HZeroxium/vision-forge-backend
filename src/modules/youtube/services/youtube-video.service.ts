@@ -5,7 +5,7 @@ import { HttpService } from '@nestjs/axios';
 import { PrismaService } from '@database/prisma.service';
 import { lastValueFrom } from 'rxjs';
 import { createReadStream } from 'fs';
-import { CacheService } from '@common/cache/cache.service';
+import { CacheService, CacheType } from '@common/cache/cache.service';
 import { YouTubeAuthService } from './youtube-auth.service';
 import { VideoStatus } from '@prisma/client';
 
@@ -45,15 +45,14 @@ export class YouTubeVideoService {
         throw new HttpException('Video not found', HttpStatus.NOT_FOUND);
       }
 
-      // Download video to temporary file
+      // Download video to temporary file - thao tác này nên thực hiện trước khi bắt đầu transaction
       const videoPath = await this.downloadVideo(video.url);
-
       let youtubeVideoId;
       let publishingHistory;
 
-      // Use transaction to ensure database consistency
-      await this.prisma.$transaction(async (prisma) => {
-        // Upload to YouTube (không thể đưa API call vào transaction, nhưng chúng ta có thể xử lý kết quả trong transaction)
+      try {
+        // Thực hiện upload video lên YouTube TRƯỚC KHI bắt đầu transaction
+        this.logger.log('Starting YouTube upload...');
         const res = await youtube.videos.insert({
           part: 'snippet,status',
           requestBody: {
@@ -71,46 +70,58 @@ export class YouTubeVideoService {
             body: createReadStream(videoPath),
           },
         });
-
         youtubeVideoId = res.data.id;
+        this.logger.log(`YouTube upload completed with ID: ${youtubeVideoId}`);
 
-        // Save publishing history within the transaction
-        publishingHistory = await prisma.publishingHistory.create({
-          data: {
-            videoId,
-            platform: 'YOUTUBE',
-            platformVideoId: youtubeVideoId,
-            publishStatus: 'success',
-            publishLogs: res.data,
+        // Sau khi đã có kết quả từ YouTube, mới bắt đầu transaction với cơ sở dữ liệu
+        await this.prisma.$transaction(
+          async (prisma) => {
+            // Lưu thông tin publishing history
+            publishingHistory = await prisma.publishingHistory.create({
+              data: {
+                videoId,
+                platform: 'YOUTUBE',
+                platformVideoId: youtubeVideoId,
+                publishStatus: 'success',
+                publishLogs: res.data,
+              },
+            });
+
+            // Cập nhật trạng thái video
+            await prisma.video.update({
+              where: { id: videoId },
+              data: { status: VideoStatus.PUBLISHED },
+            });
+
+            this.logger.log(`Video ${videoId} status updated to PUBLISHED`);
           },
-        });
-
-        // Update video status to PUBLISHED
-        await prisma.video.update({
-          where: { id: videoId },
-          data: { status: VideoStatus.PUBLISHED },
-        });
-
-        this.logger.log(`Video ${videoId} status updated to PUBLISHED`);
-      });
-
-      // Xóa file tạm sau khi đã upload xong
-      try {
-        const fs = require('fs');
-        fs.unlinkSync(videoPath);
-        this.logger.debug(`Temporary file ${videoPath} removed successfully`);
-      } catch (unlinkError) {
-        this.logger.warn(
-          `Failed to remove temporary file: ${unlinkError.message}`,
+          {
+            // Cấu hình thời gian timeout dài hơn nếu cần
+            timeout: 10000, // 10 giây
+          },
         );
-      }
 
-      return {
-        success: true,
-        youtubeVideoId,
-        youtubeUrl: `https://www.youtube.com/watch?v=${youtubeVideoId}`,
-        publishingHistoryId: publishingHistory.id,
-      };
+        // Xóa file tạm sau khi đã upload xong
+        try {
+          const fs = require('fs');
+          fs.unlinkSync(videoPath);
+          this.logger.debug(`Temporary file ${videoPath} removed successfully`);
+        } catch (unlinkError) {
+          this.logger.warn(
+            `Failed to remove temporary file: ${unlinkError.message}`,
+          );
+        }
+
+        return {
+          success: true,
+          youtubeVideoId,
+          youtubeUrl: `https://www.youtube.com/watch?v=${youtubeVideoId}`,
+          publishingHistoryId: publishingHistory.id,
+        };
+      } catch (error) {
+        // Xử lý lỗi trong quá trình upload hoặc transaction
+        throw error;
+      }
     } catch (error) {
       this.logger.error(
         `Error uploading to YouTube: ${error.message}`,
@@ -159,9 +170,10 @@ export class YouTubeVideoService {
 
       const youtubeVideoId = publishingHistory.platformVideoId;
 
-      // Try to get from cache first
+      // Try to get from cache first - Sử dụng AUTH cache
       const cachedStats = await this.cacheService.getCache(
         `${this.STATS_CACHE_PREFIX}${youtubeVideoId}`,
+        CacheType.AUTH,
       );
       if (cachedStats) {
         return {
@@ -201,11 +213,12 @@ export class YouTubeVideoService {
         lastUpdated: new Date().toISOString(),
       };
 
-      // Cache for 5 minutes to avoid too many API calls
+      // Cache for 5 minutes to avoid too many API calls - Sử dụng AUTH cache
       await this.cacheService.setCache(
         `${this.STATS_CACHE_PREFIX}${youtubeVideoId}`,
         JSON.stringify(formattedStats),
         300, // 5 minutes
+        CacheType.AUTH,
       );
 
       return {
