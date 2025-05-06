@@ -161,6 +161,7 @@ export class FlowService {
     const imagesResponse: ImagesReponseDto = {
       image_urls: imageUrls,
       scripts: prompts.map((item) => item.script),
+      prompts: prompts.map((item) => item.prompt),
     };
 
     return imagesResponse;

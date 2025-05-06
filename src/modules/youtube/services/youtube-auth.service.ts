@@ -153,7 +153,7 @@ export class YouTubeAuthService {
         ? Math.floor(
             (new Date(tokens.expiry_date).getTime() - Date.now()) / 1000,
           )
-        : 3600;
+        : 86400; // Changed from 3600 (1 hour) to 86400 (24 hours)
 
       // Use AUTH Cache instead of regular cache
       try {
@@ -307,7 +307,7 @@ export class YouTubeAuthService {
           ? Math.floor(
               (new Date(credentials.expiry_date).getTime() - Date.now()) / 1000,
             )
-          : 3600;
+          : 86400; // Changed from 3600 (1 hour) to 86400 (24 hours)
 
         // Update in Redis with AUTH cache
         await this.cacheService.setCache(
