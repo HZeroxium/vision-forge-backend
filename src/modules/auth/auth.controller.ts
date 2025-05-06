@@ -86,11 +86,11 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   async googleAuthCallback(@Req() req, @Res() res: Response) {
     // After successful Google authentication, we need to:
-    // 1. Log in the user and generate a JWT token
+    // 1. Log in the user with OAuth method (no password verification)
     // 2. Redirect to the frontend with the token
-    const tokenObj = await this.authService.login(req.user);
+    const tokenObj = await this.authService.loginWithOAuth(req.user);
 
-    // Fixed: Access the token property from the returned object
+    // Redirect to frontend with token
     res.redirect(
       `${process.env.FRONTEND_URL}/auth/google?token=${tokenObj.access_token}`,
     );

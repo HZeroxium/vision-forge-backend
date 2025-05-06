@@ -17,6 +17,13 @@ export class UserResponseDto {
   name?: string;
 
   @ApiProperty({
+    description: 'User self-description',
+    required: false,
+    example: 'Video content creator specializing in tech tutorials.',
+  })
+  description?: string; // Added field for user self-description
+
+  @ApiProperty({
     description: 'Role of the user',
     enum: Role,
     example: Role.USER,

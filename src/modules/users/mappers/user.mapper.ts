@@ -24,6 +24,7 @@ export class UserMapper {
       id: user.id,
       email: user.email,
       name: user.name,
+      description: user.description, // Added field for user self-description
       role: user.role,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

@@ -51,6 +51,20 @@ export class FlowProcessor {
       await job.progress(10);
       this.logger.log('Script validated');
 
+      // Log all provided scripts and image URLs
+      if (providedScripts) {
+        this.logger.log(`Provided scripts: ${JSON.stringify(providedScripts)}`);
+      } else {
+        this.logger.log('No provided scripts');
+      }
+      if (providedImageUrls) {
+        this.logger.log(
+          `Provided image URLs: ${JSON.stringify(providedImageUrls)}`,
+        );
+      } else {
+        this.logger.log('No provided image URLs');
+      }
+
       // If scripts and imageUrls are provided, use them directly
       if (
         providedScripts &&

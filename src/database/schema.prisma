@@ -43,6 +43,7 @@ model User {
   email                String    @unique
   password             String
   name                 String?
+  description          String? // Added field for user self-description
   role                 Role      @default(USER)
   passwordResetToken   String?
   passwordResetExpires DateTime?
@@ -111,23 +112,22 @@ model Image {
 
 /// Separate model for generated audio.
 model Audio {
-  id              String               @id @default(uuid())
-  user            User                 @relation(fields: [userId], references: [id])
+  id              String      @id @default(uuid())
+  user            User        @relation(fields: [userId], references: [id])
   userId          String
   // Optionally, an audio can be associated with a script and/or video.
-  script          Script?              @relation(fields: [scriptId], references: [id])
+  script          Script?     @relation(fields: [scriptId], references: [id])
   scriptId        String?
-  video           Video?               @relation(fields: [videoId], references: [id])
+  video           Video?      @relation(fields: [videoId], references: [id])
   videoId         String?
   provider        TTSProvider
   voiceParams     Json // Configuration such as voice, speed, pitch.
   url             String // Audio URL (generalized)
   durationSeconds Int
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   deletedAt       DateTime?
 }
-
 
 /// Model for storing publishing history of videos to external platforms.
 model PublishingHistory {

@@ -7,16 +7,27 @@ import {
   Body,
   Param,
   Put,
+  Patch,
   Delete,
   ParseIntPipe,
   Query,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { UsersPaginationDto } from './dto/user-pagination.dto';
 import { UserResponseDto } from './dto/user-reponse.dto';
+import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
+
+interface RequestWithUser {
+  user: {
+    userId: string;
+  };
+}
 
 @ApiTags('users')
 @Controller('users')
@@ -50,5 +61,15 @@ export class UsersController {
   @Delete(':id')
   delete(@Param('id') id: string) {
     return this.usersService.delete(id);
+  }
+
+  @ApiOperation({ summary: 'Update current user profile' })
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  async updateProfile(
+    @Req() req: RequestWithUser,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ): Promise<UserResponseDto> {
+    return this.usersService.updateProfile(req.user.userId, updateProfileDto);
   }
 }

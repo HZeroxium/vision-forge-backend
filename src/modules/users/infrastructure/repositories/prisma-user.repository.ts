@@ -19,6 +19,7 @@ export class PrismaUserRepository implements IUserRepository {
       email: prismaUser.email,
       password: prismaUser.password,
       name: prismaUser.name,
+      description: prismaUser.description, // Added field for user self-description
       role: prismaUser.role,
       createdAt: prismaUser.createdAt,
       updatedAt: prismaUser.updatedAt,
@@ -76,6 +77,7 @@ export class PrismaUserRepository implements IUserRepository {
         email: data.email,
         password: hashedPassword,
         name: data.name,
+        description: data.description, // Added field for user self-description
         role: data.role || Role.USER,
       },
     });
@@ -94,6 +96,7 @@ export class PrismaUserRepository implements IUserRepository {
         email: data.email,
         password: hashedPassword || undefined,
         name: data.name,
+        description: data.description, // Added field for user self-description
         role: data.role,
       },
     });

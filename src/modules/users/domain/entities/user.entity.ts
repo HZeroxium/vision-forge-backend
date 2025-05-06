@@ -6,6 +6,7 @@ export class UserEntity {
   email: string;
   password: string;
   name: string | null;
+  description: string | null; // Added field for user self-description
   role: Role;
   createdAt: Date;
   updatedAt: Date;

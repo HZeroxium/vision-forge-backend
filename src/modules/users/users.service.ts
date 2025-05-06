@@ -16,6 +16,7 @@ import { UserResponseDto } from './dto/user-reponse.dto';
 import { UserMapper } from './mappers/user.mapper';
 import { IUserRepository } from './domain/repositories/user.repository.interface';
 import { UserEntity } from './domain/entities/user.entity';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UsersService {
@@ -201,5 +202,40 @@ export class UsersService {
 
     const hashedPassword: string = await bcrypt.hash(newPassword, 10);
     return this.userRepository.resetPassword(userId, hashedPassword);
+  }
+
+  /**
+   * Updates a user's profile.
+   *
+   * @param userId The ID of the user whose profile is being updated.
+   * @param updateProfileDto The profile details to update.
+   * @returns The updated user DTO.
+   * @throws {NotFoundException} If the user is not found.
+   */
+  async updateProfile(
+    userId: string,
+    updateProfileDto: UpdateProfileDto,
+  ): Promise<UserResponseDto> {
+    this.logger.log(`Updating profile for user ID: ${userId}`);
+
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      this.logger.warn(
+        `User with ID ${userId} not found during profile update`,
+      );
+      throw new NotFoundException('User not found');
+    }
+
+    // Create update data with only the fields provided
+    const updateData: UpdateUserDto = {};
+    if (updateProfileDto.name !== undefined) {
+      updateData.name = updateProfileDto.name;
+    }
+    if (updateProfileDto.description !== undefined) {
+      updateData.description = updateProfileDto.description;
+    }
+
+    const updatedUser = await this.userRepository.update(userId, updateData);
+    return this.userMapper.mapEntityToDto(updatedUser);
   }
 }
