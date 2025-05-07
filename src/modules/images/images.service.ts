@@ -44,9 +44,11 @@ export class ImagesService {
 
   /**
    * Creates a new image asset.
-   * 1. Calls AIService to generate the image from the provided prompt.
-   * 2. Persists the generated image record in the database.
-   * 3. Invalidates related cache keys.
+   * 1. If URL is provided, uses it directly.
+   * 2. Otherwise, calls AIService to generate the image from the provided prompt.
+   * 3. Checks if an identical image already exists in the database.
+   * 4. Persists the generated image record if it doesn't already exist.
+   * 5. Invalidates related cache keys.
    * @param createImageDto - DTO for image creation.
    * @param userId - ID of the authenticated user.
    */
@@ -54,24 +56,66 @@ export class ImagesService {
     createImageDto: CreateImageDto,
     userId: string,
   ): Promise<ImageResponseDto> {
-    const { prompt, style } = createImageDto;
+    const { prompt, style, url: providedUrl } = createImageDto;
     if (!prompt || !style) {
       throw new BadRequestException('Prompt and style are required.');
     }
 
-    // Call AIService to generate the image (using dummy endpoint for testing)
-    let generatedImage;
-    try {
-      generatedImage = await this.aiService.createImage({ prompt });
-    } catch (error) {
-      throw new HttpException(
-        {
-          errorCode: 'AI_ERROR',
-          message: 'Failed to generate image from AI provider.',
-          details: error.message,
+    let imageUrl: string;
+
+    // If URL is provided, use it directly without calling AI service
+    if (providedUrl) {
+      this.logger.log('Using provided URL, skipping AI image generation');
+      imageUrl = providedUrl;
+
+      // Check if an image with the same prompt and URL already exists
+      const existingImage = await this.prisma.image.findFirst({
+        where: {
+          prompt: prompt,
+          url: imageUrl,
+          deletedAt: null,
         },
-        HttpStatus.BAD_GATEWAY,
-      );
+      });
+
+      // If an image already exists, return it instead of creating a new one
+      if (existingImage) {
+        this.logger.log(
+          `Found existing image with prompt: "${prompt.substring(0, 30)}..."`,
+        );
+        return this.mapImageToResponse(existingImage);
+      }
+    } else {
+      // Call AIService to generate the image from prompt
+      try {
+        const generatedImage = await this.aiService.createImage({ prompt });
+        imageUrl = generatedImage.image_url;
+
+        // Check if an image with the same prompt and URL already exists
+        const existingImage = await this.prisma.image.findFirst({
+          where: {
+            prompt: prompt,
+            url: imageUrl,
+            deletedAt: null,
+          },
+        });
+
+        // If an image already exists, return it instead of creating a new one
+        if (existingImage) {
+          this.logger.log(
+            `Found existing image with prompt: "${prompt.substring(0, 30)}..."`,
+          );
+          return this.mapImageToResponse(existingImage);
+        }
+      } catch (error) {
+        throw new HttpException(
+          {
+            errorCode: 'AI_ERROR',
+            message: 'Failed to generate image from AI provider.',
+            details: error.message,
+          },
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
     }
 
     // Save the generated image record to the database.
@@ -82,7 +126,7 @@ export class ImagesService {
           userId,
           prompt,
           style,
-          url: generatedImage.image_url, // General URL for the image
+          url: imageUrl,
         },
       });
       // Invalidate cache for individual image and general pagination.

@@ -6,6 +6,7 @@ export interface CreateScriptRequest {
   title: string;
   style: string;
   language?: string;
+  user_story?: string;
 }
 
 interface Source {

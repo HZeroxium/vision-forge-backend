@@ -14,4 +14,7 @@ export class CreateScriptDto {
   @IsString()
   @IsOptional()
   language?: string; // e.g., 'vn', 'en', 'fr', etc.
+
+  @IsOptional()
+  includePersonalDescription?: boolean;
 }

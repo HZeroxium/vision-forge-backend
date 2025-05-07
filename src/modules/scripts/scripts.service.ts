@@ -52,17 +52,45 @@ export class ScriptsService {
     createScriptDto: CreateScriptDto,
     userId: string,
   ): Promise<ScriptResponseDto> {
-    const { title, style, language } = createScriptDto;
+    const { title, style, language, includePersonalDescription } =
+      createScriptDto;
     if (!title || !style) {
       throw new BadRequestException('Title and style are required.');
     }
 
-    // Build a cache key (lowercase trimmed title and style)
+    let user_story: string | undefined;
+
+    // If includePersonalDescription is true, fetch user data to get their description
+    if (includePersonalDescription) {
+      try {
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { description: true },
+        });
+
+        if (user?.description) {
+          user_story = user.description;
+          this.logger.log(
+            `Including user description in script generation for user ${userId}`,
+          );
+        } else {
+          this.logger.log(
+            `User ${userId} requested to include personal description but none was found`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(`Error fetching user data: ${error.message}`);
+        // Continue without user description if there's an error
+      }
+    }
+
+    // Build a cache key (lowercase trimmed title and style) - include whether user description was used
     const cacheKey = generateCacheKey([
       'scripts',
       'ai',
       title.trim().toLowerCase(),
       style.trim().toLowerCase(),
+      user_story ? 'with-user-story' : 'no-user-story',
     ]);
 
     let generatedScript: CreateScriptResponse | null = null;
@@ -76,7 +104,12 @@ export class ScriptsService {
         `Cache miss for key: ${cacheKey}. Calling AIService to generate script.`,
       );
       try {
-        generatedScript = await this.aiService.createScript({ title, style });
+        generatedScript = await this.aiService.createScript({
+          title,
+          style,
+          language,
+          user_story,
+        });
         // Cache the full response object including content and sources
         await this.cacheService.setCache(
           cacheKey,
