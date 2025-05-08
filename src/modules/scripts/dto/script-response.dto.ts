@@ -4,6 +4,12 @@ export class ScriptResponseDto {
   title: string;
   content: string;
   style: string;
+  sources?: Array<{
+    title: string;
+    content: string;
+    url: string;
+    source_type: string;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }

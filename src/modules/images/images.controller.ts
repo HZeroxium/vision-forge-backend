@@ -20,6 +20,12 @@ import { ImageResponseDto } from './dto/image-response.dto';
 import { ImagesPaginationDto } from './dto/images-pagination.dto';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 
+interface RequestWithUser {
+  user: {
+    userId: string;
+  };
+}
+
 @Controller('images')
 export class ImagesController {
   constructor(private readonly imagesService: ImagesService) {}
@@ -32,7 +38,7 @@ export class ImagesController {
   @Post()
   async createImage(
     @Body() createImageDto: CreateImageDto,
-    @Req() req: any,
+    @Req() req: RequestWithUser,
   ): Promise<ImageResponseDto> {
     return this.imagesService.createImage(createImageDto, req.user.userId);
   }
@@ -46,8 +52,9 @@ export class ImagesController {
     page: number = 1,
     @Query('limit', new DefaultValuePipe(10), new ParseIntPipe())
     limit: number = 10,
+    @Query('userId') userId?: string,
   ): Promise<ImagesPaginationDto> {
-    return this.imagesService.findAll(page, limit);
+    return this.imagesService.findAll(page, limit, userId);
   }
 
   /**
@@ -61,19 +68,40 @@ export class ImagesController {
   /**
    * Update an existing image asset.
    */
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async update(
     @Param('id') id: string,
     @Body() updateImageDto: UpdateImageDto,
+    @Req() req: RequestWithUser,
   ): Promise<ImageResponseDto> {
-    return this.imagesService.update(id, updateImageDto);
+    return this.imagesService.update(id, updateImageDto, req.user.userId);
   }
 
   /**
    * Soft delete an image asset.
    */
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  async remove(@Param('id') id: string): Promise<ImageResponseDto> {
-    return this.imagesService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @Req() req: RequestWithUser,
+  ): Promise<ImageResponseDto> {
+    return this.imagesService.remove(id, req.user.userId);
+  }
+
+  /**
+   * Get current user's images.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('user/me')
+  async findMyImages(
+    @Query('page', new DefaultValuePipe(1), new ParseIntPipe())
+    page: number = 1,
+    @Query('limit', new DefaultValuePipe(10), new ParseIntPipe())
+    limit: number = 10,
+    @Req() req: RequestWithUser,
+  ): Promise<ImagesPaginationDto> {
+    return this.imagesService.findAll(page, limit, req.user.userId);
   }
 }

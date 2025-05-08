@@ -19,6 +19,8 @@ import { AudiosModule } from '@audios/audios.module';
 import { VideosModule } from '@videos/videos.module';
 import { FlowModule } from '@flow/flow.module';
 import { BullModule } from '@nestjs/bull';
+import { YouTubeModule } from './modules/youtube/youtube.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -39,6 +41,7 @@ import { BullModule } from '@nestjs/bull';
     VideosModule,
     FlowModule,
     PublisherModule,
+    YouTubeModule,
   ],
   controllers: [AppController],
   providers: [

@@ -6,14 +6,24 @@ export interface CreateScriptRequest {
   title: string;
   style: string;
   language?: string;
+  user_story?: string;
+}
+
+interface Source {
+  title: string;
+  content: string;
+  url: string;
+  source_type: string;
 }
 
 export interface CreateScriptResponse {
   content: string;
+  sources: Source[];
 }
 
 export interface CreateImageRequest {
   prompt: string;
+  style: string;
 }
 
 export interface CreateImageResponse {
@@ -45,6 +55,7 @@ export interface CreateVideoRequest {
   audio_url: string;
   title?: string;
   transition_duration?: number;
+  voice?: string
 }
 
 export interface CreateVideoResponse {

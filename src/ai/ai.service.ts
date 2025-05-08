@@ -121,15 +121,11 @@ export class AIService {
    * Calls FastAPI endpoint to generate a video from images and audio.
    * The mode can be 'full' (with transitions) or 'simple' (slideshow).
    */
-  async createVideo(
-    request: CreateVideoRequest,
-    mode: 'full' | 'simple' = 'simple',
-  ): Promise<CreateVideoResponse> {
-    let endpoint = mode === 'full' ? '/video/create' : '/video/create-simple';
-    // if (this.IS_DUMMY_MODE) {
-    //   endpoint += '/dummy';
-    // }
-    const url = `${this.fastApiUrl}${endpoint}`;
+  async createVideo(request: CreateVideoRequest): Promise<CreateVideoResponse> {
+    let url = `${this.fastApiUrl}/video/create-simple`;
+    if (this.IS_DUMMY_MODE) {
+      url += '/dummy';
+    }
     this.logger.log(`Calling FastAPI create video at ${url}`);
     const response = await lastValueFrom(
       this.httpService.post<CreateVideoResponse>(url, request),

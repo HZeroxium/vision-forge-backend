@@ -32,4 +32,8 @@ export class CreateVideoDto {
   @IsOptional()
   @IsNumber()
   transitionDuration?: number;
+
+  @IsOptional()
+  @IsString()
+  voice?: string;
 }

@@ -9,6 +9,7 @@ export class VideoResponseDto {
   status: string;
   url: string;
   thumbnailUrl?: string;
+  publishingHistoryId?: string; // ID of the latest publishing history if video has been published
   createdAt: Date;
   updatedAt: Date;
 }

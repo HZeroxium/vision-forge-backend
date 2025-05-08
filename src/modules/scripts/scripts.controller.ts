@@ -12,6 +12,7 @@ import {
   Query,
   ParseIntPipe,
   DefaultValuePipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ScriptsService } from './scripts.service';
 import { CreateScriptDto } from './dto/create-script.dto';
@@ -21,6 +22,12 @@ import { ScriptResponseDto } from './dto/script-response.dto';
 import { ScriptsPaginationDto } from './dto/scripts-pagination.dto';
 import { CreateImagePromptsDto } from './dto/create-image-prompts.dto';
 
+interface RequestWithUser {
+  user: {
+    userId: string;
+  };
+}
+
 @Controller('scripts')
 export class ScriptsController {
   constructor(private readonly scriptsService: ScriptsService) {}
@@ -29,14 +36,11 @@ export class ScriptsController {
   @Post()
   async createScript(
     @Body() createScriptDto: CreateScriptDto,
-    @Req() req: any,
+    @Req() req: RequestWithUser,
   ): Promise<ScriptResponseDto> {
     return this.scriptsService.createScript(createScriptDto, req.user.userId);
   }
 
-  /**
-   * Generate image prompts based on script content.
-   */
   @UseGuards(JwtAuthGuard)
   @Post('image-prompts')
   async createImagePrompts(
@@ -51,8 +55,9 @@ export class ScriptsController {
     page: number = 1,
     @Query('limit', new DefaultValuePipe(10), new ParseIntPipe())
     limit: number = 10,
+    @Query('userId') userId?: string,
   ): Promise<ScriptsPaginationDto> {
-    return this.scriptsService.findAll(page, limit);
+    return this.scriptsService.findAll(page, limit, userId);
   }
 
   @Get(':id')
@@ -60,16 +65,34 @@ export class ScriptsController {
     return this.scriptsService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async update(
     @Param('id') id: string,
     @Body() updateScriptDto: UpdateScriptDto,
+    @Req() req: RequestWithUser,
   ): Promise<ScriptResponseDto> {
-    return this.scriptsService.update(id, updateScriptDto);
+    return this.scriptsService.update(id, updateScriptDto, req.user.userId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  async remove(@Param('id') id: string): Promise<ScriptResponseDto> {
-    return this.scriptsService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @Req() req: RequestWithUser,
+  ): Promise<ScriptResponseDto> {
+    return this.scriptsService.remove(id, req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('user/me')
+  async findMyScripts(
+    @Query('page', new DefaultValuePipe(1), new ParseIntPipe())
+    page: number = 1,
+    @Query('limit', new DefaultValuePipe(10), new ParseIntPipe())
+    limit: number = 10,
+    @Req() req: RequestWithUser,
+  ): Promise<ScriptsPaginationDto> {
+    return this.scriptsService.findAll(page, limit, req.user.userId);
   }
 }

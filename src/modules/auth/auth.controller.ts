@@ -7,10 +7,14 @@ import {
   UseGuards,
   Get,
   Body,
+  Res,
+  Req,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
+import { Response } from 'express';
 
 import { Role } from '@prisma/client';
 import { Roles } from '@common/decorators/roles.decorator';
@@ -29,10 +33,10 @@ export class AuthController {
     return this.authService.register(registerDto);
   }
 
-  @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(@Request() req: any) {
-    return this.authService.login(req.user);
+    console.log(req.body);
+    return this.authService.login(req.body);
   }
 
   @Post('forgot-password')
@@ -68,5 +72,27 @@ export class AuthController {
   @Get('profile')
   async profile(@Request() req: any) {
     return this.authService.getProfile(req.user);
+  }
+
+  // Google Authentication Routes
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  googleAuth() {
+    // This route initiates the Google OAuth flow
+    // The guard will handle the redirection to Google
+  }
+
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  async googleAuthCallback(@Req() req, @Res() res: Response) {
+    // After successful Google authentication, we need to:
+    // 1. Log in the user with OAuth method (no password verification)
+    // 2. Redirect to the frontend with the token
+    const tokenObj = await this.authService.loginWithOAuth(req.user);
+
+    // Redirect to frontend with token
+    res.redirect(
+      `${process.env.FRONTEND_URL}/auth/google?token=${tokenObj.access_token}`,
+    );
   }
 }

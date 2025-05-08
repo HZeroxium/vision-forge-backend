@@ -3,4 +3,5 @@
 export class ImagesReponseDto {
   image_urls: string[];
   scripts: string[];
+  prompts: string[];
 }

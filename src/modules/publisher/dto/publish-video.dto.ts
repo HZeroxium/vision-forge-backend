@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsArray,
   ArrayNotEmpty,
+  IsOptional,
 } from 'class-validator';
 import { PublishPlatform } from '@prisma/client';
 
@@ -15,7 +16,7 @@ export class PublishVideoDto {
   videoId: string; // ID from Video record
 
   @IsEnum(PublishPlatform, { message: 'Invalid publish platform' })
-  platform: PublishPlatform; // YOUTUBE, TIKTOK, or FACEBOOK
+  platform: PublishPlatform = PublishPlatform.YOUTUBE; // Currently only supporting YouTube
 
   @IsString()
   @IsNotEmpty()
@@ -30,5 +31,9 @@ export class PublishVideoDto {
   @IsString({ each: true })
   tags: string[];
 
-  // TODO: Optionally add more parameters like privacy settings
+  @IsOptional()
+  @IsEnum(['private', 'public', 'unlisted'], {
+    message: 'Privacy status must be one of: private, public, unlisted',
+  })
+  privacyStatus?: 'private' | 'public' | 'unlisted' = 'private';
 }

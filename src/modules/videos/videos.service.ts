@@ -6,6 +6,7 @@ import {
   HttpException,
   HttpStatus,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { CreateVideoDto } from './dto/create-video.dto';
 import { UpdateVideoDto } from './dto/update-video.dto';
@@ -16,7 +17,7 @@ import { VideosPaginationDto } from './dto/videos-pagination.dto';
 import { VideoStatus } from '@prisma/client';
 import { CreateVideoResponse } from 'src/ai/dto/fastapi.dto';
 import { AppLoggerService } from '@common/logger/logger.service';
-import { CacheService } from '@/common/cache/cache.service';
+import { CacheService, CacheType } from '@/common/cache/cache.service';
 import { generateCacheKey } from '@/common/cache/utils';
 
 @Injectable()
@@ -30,9 +31,10 @@ export class VideosService {
 
   /**
    * Maps a Prisma Video record to VideoResponseDto.
+   * Now supports including publishing history data when available.
    */
   mapVideoToResponse(video: any): VideoResponseDto {
-    return {
+    const response: VideoResponseDto = {
       id: video.id,
       userId: video.userId,
       scriptId: video.scriptId,
@@ -42,6 +44,13 @@ export class VideosService {
       createdAt: video.createdAt,
       updatedAt: video.updatedAt,
     };
+
+    // Add publishing history ID if it exists in the video object
+    if (video.publishingHistories && video.publishingHistories.length > 0) {
+      response.publishingHistoryId = video.publishingHistories[0].id;
+    }
+
+    return response;
   }
 
   /**
@@ -56,8 +65,14 @@ export class VideosService {
     createVideoDto: CreateVideoDto,
     userId: string,
   ): Promise<VideoResponseDto> {
-    const { imageUrls, audioUrl, transitionDuration, scriptId, scripts } =
-      createVideoDto;
+    const {
+      imageUrls,
+      audioUrl,
+      transitionDuration,
+      scriptId,
+      scripts,
+      voice,
+    } = createVideoDto;
     if (!imageUrls || imageUrls.length === 0 || !audioUrl || !scriptId) {
       throw new BadRequestException('Image URLs and audio URL are required.');
     }
@@ -68,15 +83,13 @@ export class VideosService {
     let generatedVideo: CreateVideoResponse;
     try {
       // For this example, we use 'simple' mode (slideshow).
-      generatedVideo = await this.aiService.createVideo(
-        {
-          image_urls: imageUrls,
-          audio_url: audioUrl,
-          transition_duration: transitionDuration,
-          scripts,
-        },
-        'simple',
-      );
+      generatedVideo = await this.aiService.createVideo({
+        image_urls: imageUrls,
+        audio_url: audioUrl,
+        transition_duration: transitionDuration,
+        scripts,
+        voice,
+      });
     } catch (error) {
       throw new HttpException(
         {
@@ -126,38 +139,60 @@ export class VideosService {
    *
    * @param page - Page number (default 1).
    * @param limit - Number of records per page (default 10).
+   * @param userId - Optional filter by user ID.
    * @returns Paginated video assets as VideosPaginationDto.
    */
   async findAll(
     page: number = 1,
     limit: number = 10,
+    userId?: string,
   ): Promise<VideosPaginationDto> {
     const cacheKey = generateCacheKey([
       'videos',
       'findAll',
       page.toString(),
       limit.toString(),
+      userId || 'all',
     ]);
-    const cached = await this.cacheService.getCache(cacheKey);
+
+    // Sử dụng DATA cache type
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
     }
 
     const skip = (page - 1) * limit;
+
+    // Add userId filter if provided
+    const whereClause: any = { deletedAt: null };
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
     const [videos, totalCount] = await this.prisma.$transaction([
       this.prisma.video.findMany({
-        where: { deletedAt: null },
+        where: whereClause,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
+        include: {
+          publishingHistories: {
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1,
+          },
+        },
       }),
-      this.prisma.video.count({ where: { deletedAt: null } }),
+      this.prisma.video.count({ where: whereClause }),
     ]);
+
     const totalPages = Math.ceil(totalCount / limit);
     const videoResponses = videos.map((video) =>
       this.mapVideoToResponse(video),
     );
+
     const result: VideosPaginationDto = {
       totalCount,
       page,
@@ -166,7 +201,14 @@ export class VideosService {
       videos: videoResponses,
     };
 
-    await this.cacheService.setCache(cacheKey, JSON.stringify(result));
+    // Sử dụng DATA cache type khi lưu kết quả
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(result),
+      undefined,
+      CacheType.DATA,
+    );
+
     return result;
   }
 
@@ -179,19 +221,42 @@ export class VideosService {
    */
   async findOne(id: string): Promise<VideoResponseDto> {
     const cacheKey = generateCacheKey(['videos', 'findOne', id]);
-    const cached = await this.cacheService.getCache(cacheKey);
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
     }
+
     const video = await this.prisma.video.findUnique({
       where: { id, deletedAt: null },
+      include: {
+        publishingHistories: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
+      },
     });
+
     if (!video) {
       throw new NotFoundException(`Video with ID ${id} not found.`);
     }
+
     const response = this.mapVideoToResponse(video);
-    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+
+    // Add the publishing history ID if available
+    if (video.publishingHistories && video.publishingHistories.length > 0) {
+      response.publishingHistoryId = video.publishingHistories[0].id;
+    }
+
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(response),
+      undefined,
+      CacheType.DATA,
+    );
+
     return response;
   }
 
@@ -201,22 +266,34 @@ export class VideosService {
    *
    * @param id - The ID of the video to update.
    * @param updateVideoDto - DTO containing update fields.
+   * @param userId - The ID of the user making the request.
    * @returns The updated video asset as VideoResponseDto.
    */
   async update(
     id: string,
     updateVideoDto: UpdateVideoDto,
+    userId: string,
   ): Promise<VideoResponseDto> {
     const video = await this.prisma.video.findUnique({
       where: { id, deletedAt: null },
     });
+
     if (!video) {
       throw new NotFoundException(`Video with ID ${id} not found.`);
     }
+
+    // Check if the user owns the video
+    if (video.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to update this video',
+      );
+    }
+
     const updatedVideo = await this.prisma.video.update({
       where: { id },
       data: updateVideoDto,
     });
+
     // Invalidate cache for this video and common pagination keys.
     await this.cacheService.deleteCache(
       generateCacheKey(['videos', 'findOne', id]),
@@ -224,6 +301,10 @@ export class VideosService {
     await this.cacheService.deleteCache(
       generateCacheKey(['videos', 'findAll', '1', '10']),
     );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['videos', 'findAll', '1', '10', userId]),
+    );
+
     return this.mapVideoToResponse(updatedVideo);
   }
 
@@ -232,19 +313,30 @@ export class VideosService {
    * Invalidates related cache keys after deletion.
    *
    * @param id - The ID of the video to delete.
+   * @param userId - The ID of the user making the request.
    * @returns The soft-deleted video asset as VideoResponseDto.
    */
-  async remove(id: string): Promise<VideoResponseDto> {
+  async remove(id: string, userId: string): Promise<VideoResponseDto> {
     const video = await this.prisma.video.findUnique({
       where: { id, deletedAt: null },
     });
+
     if (!video) {
       throw new NotFoundException(`Video with ID ${id} not found.`);
     }
+
+    // Check if the user owns the video
+    if (video.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to delete this video',
+      );
+    }
+
     const deletedVideo = await this.prisma.video.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
+
     // Invalidate cache for this video and common pagination keys.
     await this.cacheService.deleteCache(
       generateCacheKey(['videos', 'findOne', id]),
@@ -252,6 +344,10 @@ export class VideosService {
     await this.cacheService.deleteCache(
       generateCacheKey(['videos', 'findAll', '1', '10']),
     );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['videos', 'findAll', '1', '10', userId]),
+    );
+
     return this.mapVideoToResponse(deletedVideo);
   }
 
@@ -261,21 +357,40 @@ export class VideosService {
       'findOneByScriptId',
       scriptId,
     ]);
-    const cached = await this.cacheService.getCache(cacheKey);
+
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
     }
+
     const video = await this.prisma.video.findFirst({
       where: { scriptId, deletedAt: null },
+      include: {
+        publishingHistories: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
+      },
     });
+
     if (!video) {
       throw new NotFoundException(
         `Video with Script ID ${scriptId} not found.`,
       );
     }
+
     const response = this.mapVideoToResponse(video);
-    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(response),
+      undefined,
+      CacheType.DATA,
+    );
+
     return response;
   }
 }

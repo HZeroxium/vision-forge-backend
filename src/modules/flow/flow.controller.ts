@@ -71,10 +71,13 @@ export class FlowController {
     @Body() generateVideoFlowDto: GenerateVideoFlowDto,
     @Req() req: any,
   ) {
-    const { scriptId } = generateVideoFlowDto;
+    const { scriptId, scripts, imageUrls, voice } = generateVideoFlowDto;
     const job = await this.flowQueue.add('generate', {
       userId: req.user.userId,
       scriptId,
+      scripts,
+      imageUrls,
+      voice,
     });
 
     return {

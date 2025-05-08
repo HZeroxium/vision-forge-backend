@@ -30,6 +30,7 @@ export class FlowProcessor {
       scriptId: string;
       scripts?: string[];
       imageUrls?: string[];
+      voice?: string;
     }>,
   ) {
     const {
@@ -37,19 +38,49 @@ export class FlowProcessor {
       scriptId,
       scripts: providedScripts,
       imageUrls: providedImageUrls,
+      voice,
     } = job.data;
     this.logger.log(`Processing job ${job.id}`);
 
     try {
-      // Step 1: script validation (5%)
+      // Step 1: script validation and content update (5%)
       await job.progress(5);
       this.logger.log(`Validating script ${scriptId}`);
 
       const script = await this.scriptsService.findOne(scriptId);
       if (!script) throw new NotFoundException('Script not found');
 
+      // If providedScripts exists, check and update script content if needed
+      if (providedScripts && providedScripts.length > 0) {
+        const concatenatedScripts = providedScripts.join(' ');
+        if (concatenatedScripts !== script.content) {
+          this.logger.log('Updating script content with provided scripts');
+          await this.scriptsService.update(
+            scriptId,
+            { content: concatenatedScripts },
+            userId,
+          );
+          // Update our script object to reflect the changes
+          script.content = concatenatedScripts;
+        }
+      }
+
       await job.progress(10);
-      this.logger.log('Script validated');
+      this.logger.log('Script validated and updated if needed');
+
+      // Log all provided scripts and image URLs
+      if (providedScripts) {
+        this.logger.log(`Provided scripts: ${JSON.stringify(providedScripts)}`);
+      } else {
+        this.logger.log('No provided scripts');
+      }
+      if (providedImageUrls) {
+        this.logger.log(
+          `Provided image URLs: ${JSON.stringify(providedImageUrls)}`,
+        );
+      } else {
+        this.logger.log('No provided image URLs');
+      }
 
       // If scripts and imageUrls are provided, use them directly
       if (
@@ -62,10 +93,17 @@ export class FlowProcessor {
 
         // Step 2: Generate audio only (40%)
         this.logger.log('Generating audio from script');
-        const audio = await this.audiosService.createAudio(
-          { scriptId },
-          userId,
-        );
+        // const audio = await this.audiosService.createAudio(
+        //   { scriptId },
+        //   userId,
+        // );
+        // Return a mock audio response for testing
+        const audio = {
+          url: 'https://vision-forge.sgp1.digitaloceanspaces.com/audio/dab071a6fe384d629077ac133615a2b1.mp3',
+          duration: 120, // Mock duration in seconds
+        };
+        this.logger.log(`Generated audio URL: ${audio.url}`);
+
         await job.progress(40);
         this.logger.log(`Audio generated: ${audio.url}`);
 
@@ -81,6 +119,7 @@ export class FlowProcessor {
             scriptId,
             transitionDuration: 1,
             scripts: providedScripts,
+            voice,
           },
           userId,
         );

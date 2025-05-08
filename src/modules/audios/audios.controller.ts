@@ -20,6 +20,12 @@ import { AudioResponseDto } from './dto/audio-response.dto';
 import { AudiosPaginationDto } from './dto/audios-pagination.dto';
 import { JwtAuthGuard } from '@auth/guards/jwt-auth.guard';
 
+interface RequestWithUser {
+  user: {
+    userId: string;
+  };
+}
+
 @Controller('audios')
 export class AudiosController {
   constructor(private readonly audiosService: AudiosService) {}
@@ -32,7 +38,7 @@ export class AudiosController {
   @Post()
   async createAudio(
     @Body() createAudioDto: CreateAudioDto,
-    @Req() req: any,
+    @Req() req: RequestWithUser,
   ): Promise<AudioResponseDto> {
     return this.audiosService.createAudio(createAudioDto, req.user.userId);
   }
@@ -46,8 +52,9 @@ export class AudiosController {
     page: number = 1,
     @Query('limit', new DefaultValuePipe(10), new ParseIntPipe())
     limit: number = 10,
+    @Query('userId') userId?: string,
   ): Promise<AudiosPaginationDto> {
-    return this.audiosService.findAll(page, limit);
+    return this.audiosService.findAll(page, limit, userId);
   }
 
   /**
@@ -61,19 +68,40 @@ export class AudiosController {
   /**
    * Update an existing audio asset.
    */
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async update(
     @Param('id') id: string,
     @Body() updateAudioDto: UpdateAudioDto,
+    @Req() req: RequestWithUser,
   ): Promise<AudioResponseDto> {
-    return this.audiosService.update(id, updateAudioDto);
+    return this.audiosService.update(id, updateAudioDto, req.user.userId);
   }
 
   /**
    * Soft delete an audio asset.
    */
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  async remove(@Param('id') id: string): Promise<AudioResponseDto> {
-    return this.audiosService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @Req() req: RequestWithUser,
+  ): Promise<AudioResponseDto> {
+    return this.audiosService.remove(id, req.user.userId);
+  }
+
+  /**
+   * Get current user's audios.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('user/me')
+  async findMyAudios(
+    @Query('page', new DefaultValuePipe(1), new ParseIntPipe())
+    page: number = 1,
+    @Query('limit', new DefaultValuePipe(10), new ParseIntPipe())
+    limit: number = 10,
+    @Req() req: RequestWithUser,
+  ): Promise<AudiosPaginationDto> {
+    return this.audiosService.findAll(page, limit, req.user.userId);
   }
 }

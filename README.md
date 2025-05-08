@@ -1,99 +1,179 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Vision Forge Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Vision Forge is a comprehensive platform for creating, managing, and publishing AI-generated video content. This repository contains the backend services built with NestJS.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Table of Contents
 
-## Description
+- [Table of Contents](#table-of-contents)
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Running the Application](#running-the-application)
+  - [Development Mode](#development-mode)
+  - [Production Mode](#production-mode)
+- [API Documentation](#api-documentation)
+- [Testing](#testing)
+- [Project Structure](#project-structure)
+- [License](#license)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Features
 
-## Project setup
+- **User Authentication**: Support for local authentication strategy, JWT tokens, and Google OAuth
+- **YouTube Integration**: Upload, analyze and manage YouTube videos
+- **Content Management**: Handle videos, scripts, images, and audio files
+- **Content Generation Flow**: Orchestrated process for generating video content
+- **Publisher System**: Mechanisms to publish content to various platforms
+- **Analytics**: Track performance of published content
 
-```bash
-$ npm install
-```
+## Technology Stack
 
-## Compile and run the project
+- **Framework**: NestJS (Node.js)
+- **Database**: PostgreSQL with Prisma ORM
+- **Queue Processing**: Bull with Redis
+- **Authentication**: Passport.js with JWT, Local, and Google strategies
+- **API Documentation**: Swagger
+- **Testing**: Jest
 
-```bash
-# development
-$ npm run start
+## Prerequisites
 
-# watch mode
-$ npm run start:dev
+Before you begin, ensure you have the following installed:
 
-# production mode
-$ npm run start:prod
-```
+- Node.js (v20.x or higher)
+- npm (v10.x or higher)
+- Docker and Docker Compose (for running Redis and PostgreSQL)
+- Git
 
-## Run tests
+## Installation
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+- 1. Clone the repository:
 
 ```bash
-$ npm install -g mau
-$ mau deploy
+git clone <repository-url>
+cd vision-forge-backend
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+- 2. Install dependencies:
 
-## Resources
+```bash
+npm install
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+- 3. Start the required services using Docker Compose:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+docker-compose up -d
+```
 
-## Support
+- 4. Set up the database:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+npx prisma generate
+npx prisma migrate dev
+```
 
-## Stay in touch
+## Configuration
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Application
+PORT=3000
+NODE_ENV=development
+
+# Database
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/vision_forge?schema=public"
+
+# JWT
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRATION=60m
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# Google OAuth
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
+
+# YouTube API
+YOUTUBE_API_KEY=your_youtube_api_key
+
+# AI Services
+AI_API_URL=your_ai_service_url
+AI_API_KEY=your_ai_service_key
+```
+
+Adjust these values according to your development environment.
+
+## Running the Application
+
+### Development Mode
+
+```bash
+# Start the development server with hot reload
+npm run start:dev
+```
+
+### Production Mode
+
+```bash
+# Build the application
+npm run build
+
+# Start the production server
+npm run start:prod
+```
+
+## API Documentation
+
+Once the application is running, you can access the Swagger API documentation at:
+
+```
+http://localhost:3000/api/docs
+```
+
+This provides a comprehensive overview of all available endpoints and their usage.
+
+## Testing
+
+```bash
+# Unit tests
+npm run test
+
+# E2E tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+## Project Structure
+
+The application follows a modular architecture:
+
+```
+src/
+├── app.module.ts            # Main application module
+├── main.ts                  # Application entry point
+├── modules/                 # Feature modules
+│   ├── auth/                # Authentication module
+│   ├── users/               # User management
+│   ├── youtube/             # YouTube integration
+│   ├── videos/              # Video management
+│   ├── scripts/             # Script management
+│   ├── images/              # Image management
+│   ├── audios/              # Audio management
+│   ├── flow/                # Content generation workflow
+│   └── publisher/           # Publishing system
+├── common/                  # Shared utilities, guards, etc.
+├── config/                  # Configuration files
+├── database/                # Database related files
+└── ai/                      # AI integration
+```
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+[MIT](LICENSE)

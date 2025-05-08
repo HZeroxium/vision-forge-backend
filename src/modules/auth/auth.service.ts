@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UserEntity } from '@users/domain/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -71,16 +72,59 @@ export class AuthService {
     return null;
   }
 
-  async login(user: any) {
-    const payload = { email: user.email, sub: user.id, role: user.role };
-    return { access_token: this.jwtService.sign(payload) };
+  async login(credentials: { email: string; password: string }) {
+    console.log(credentials.email);
+    const user = await this.usersService.findByEmail(credentials.email);
+
+    // Kiểm tra user tồn tại
+    if (!user) {
+      console.log('Email wrong');
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // So sánh mật khẩu
+    const isPasswordValid = await bcrypt.compare(
+      credentials.password,
+      user.password,
+    );
+    if (!isPasswordValid) {
+      console.log('Password wrong');
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // Tạo JWT payload
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
   }
 
-  async validateOAuthLogin(profile: any) {
+  async loginWithOAuth(user: any) {
+    // OAuth users are already authenticated by OAuth provider
+    // No need to validate password
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+    };
+  }
+
+  async validateOAuthLogin(profile: any): Promise<UserEntity> {
     const { emails, displayName } = profile;
     const email = emails[0].value;
     let user = await this.usersService.findByEmail(email);
+
     if (!user) {
+      // Create a new user with OAuth credentials
       user = await this.usersService.create({
         email,
         password: '', // No password for OAuth user
@@ -88,6 +132,7 @@ export class AuthService {
         role: Role.USER, // Default role
       });
     }
+
     return user;
   }
 }

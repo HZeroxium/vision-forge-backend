@@ -24,8 +24,10 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
 
-  // Set global prefix
-  app.setGlobalPrefix(configService.get<string>('apiPrefix')!);
+  // Log the global prefix configuration
+  const apiPrefix = configService.get<string>('apiPrefix')!;
+  loggerService.log(`Setting global prefix: ${apiPrefix}`);
+  app.setGlobalPrefix(apiPrefix);
 
   // Enable CORS
   if (configService.get<boolean>('cors.enabled')) {

@@ -5,6 +5,7 @@ import {
   HttpException,
   HttpStatus,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 import { AIService } from '@ai/ai.service';
@@ -14,7 +15,7 @@ import { AudioResponseDto } from './dto/audio-response.dto';
 import { AudiosPaginationDto } from './dto/audios-pagination.dto';
 import { TTSProvider } from '@prisma/client';
 import { ScriptsService } from '@scripts/scripts.service';
-import { CacheService } from '@/common/cache/cache.service';
+import { CacheService, CacheType } from '@/common/cache/cache.service';
 import { generateCacheKey } from '@/common/cache/utils';
 import { AppLoggerService } from '@/common/logger/logger.service';
 
@@ -120,33 +121,44 @@ export class AudiosService {
    *
    * @param page - Page number (default 1).
    * @param limit - Number of records per page (default 10).
+   * @param userId - Optional filter by user ID.
    * @returns Paginated audio assets as AudiosPaginationDto.
    */
   async findAll(
     page: number = 1,
     limit: number = 10,
+    userId?: string,
   ): Promise<AudiosPaginationDto> {
     const cacheKey = generateCacheKey([
       'audios',
       'findAll',
       page.toString(),
       limit.toString(),
+      userId || 'all',
     ]);
-    const cached = await this.cacheService.getCache(cacheKey);
+
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
     }
 
     const skip = (page - 1) * limit;
+
+    // Add userId filter if provided
+    const whereClause: any = { deletedAt: null };
+    if (userId) {
+      whereClause.userId = userId;
+    }
+
     const [audios, totalCount] = await this.prisma.$transaction([
       this.prisma.audio.findMany({
-        where: { deletedAt: null },
+        where: whereClause,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
-      this.prisma.audio.count({ where: { deletedAt: null } }),
+      this.prisma.audio.count({ where: whereClause }),
     ]);
     const totalPages = Math.ceil(totalCount / limit);
     const audioResponses = audios.map((audio) =>
@@ -159,7 +171,13 @@ export class AudiosService {
       totalPages,
       audios: audioResponses,
     };
-    await this.cacheService.setCache(cacheKey, JSON.stringify(result));
+
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(result),
+      undefined,
+      CacheType.DATA,
+    );
     return result;
   }
 
@@ -172,7 +190,7 @@ export class AudiosService {
    */
   async findOne(id: string): Promise<AudioResponseDto> {
     const cacheKey = generateCacheKey(['audios', 'findOne', id]);
-    const cached = await this.cacheService.getCache(cacheKey);
+    const cached = await this.cacheService.getCache(cacheKey, CacheType.DATA);
     if (cached) {
       this.logger.log(`Cache hit for key: ${cacheKey}`);
       return JSON.parse(cached);
@@ -184,7 +202,12 @@ export class AudiosService {
       throw new NotFoundException(`Audio with ID ${id} not found.`);
     }
     const response = this.mapAudioToResponse(audio);
-    await this.cacheService.setCache(cacheKey, JSON.stringify(response));
+    await this.cacheService.setCache(
+      cacheKey,
+      JSON.stringify(response),
+      undefined,
+      CacheType.DATA,
+    );
     return response;
   }
 
@@ -194,28 +217,45 @@ export class AudiosService {
    *
    * @param id - The ID of the audio asset to update.
    * @param updateAudioDto - DTO with updated fields.
+   * @param userId - The ID of the user making the request.
    * @returns The updated audio asset as AudioResponseDto.
    */
   async update(
     id: string,
     updateAudioDto: UpdateAudioDto,
+    userId: string,
   ): Promise<AudioResponseDto> {
     const audio = await this.prisma.audio.findUnique({
       where: { id, deletedAt: null },
     });
+
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${id} not found.`);
     }
+
+    // Check if the user owns the audio
+    if (audio.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to update this audio',
+      );
+    }
+
     const updatedAudio = await this.prisma.audio.update({
       where: { id },
       data: updateAudioDto,
     });
+
+    // Invalidate cache
     await this.cacheService.deleteCache(
       generateCacheKey(['audios', 'findOne', id]),
     );
     await this.cacheService.deleteCache(
       generateCacheKey(['audios', 'findAll', '1', '10']),
     );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['audios', 'findAll', '1', '10', userId]),
+    );
+
     return this.mapAudioToResponse(updatedAudio);
   }
 
@@ -224,25 +264,41 @@ export class AudiosService {
    * Invalidates related cache keys after deletion.
    *
    * @param id - The ID of the audio asset to delete.
+   * @param userId - The ID of the user making the request.
    * @returns The soft-deleted audio asset as AudioResponseDto.
    */
-  async remove(id: string): Promise<AudioResponseDto> {
+  async remove(id: string, userId: string): Promise<AudioResponseDto> {
     const audio = await this.prisma.audio.findUnique({
       where: { id, deletedAt: null },
     });
+
     if (!audio) {
       throw new NotFoundException(`Audio with ID ${id} not found.`);
     }
+
+    // Check if the user owns the audio
+    if (audio.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to delete this audio',
+      );
+    }
+
     const deletedAudio = await this.prisma.audio.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
+
+    // Invalidate cache
     await this.cacheService.deleteCache(
       generateCacheKey(['audios', 'findOne', id]),
     );
     await this.cacheService.deleteCache(
       generateCacheKey(['audios', 'findAll', '1', '10']),
     );
+    await this.cacheService.deleteCache(
+      generateCacheKey(['audios', 'findAll', '1', '10', userId]),
+    );
+
     return this.mapAudioToResponse(deletedAudio);
   }
 }
