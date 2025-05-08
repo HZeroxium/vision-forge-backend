@@ -30,6 +30,7 @@ export class FlowProcessor {
       scriptId: string;
       scripts?: string[];
       imageUrls?: string[];
+      voice?: string;
     }>,
   ) {
     const {
@@ -37,6 +38,7 @@ export class FlowProcessor {
       scriptId,
       scripts: providedScripts,
       imageUrls: providedImageUrls,
+      voice,
     } = job.data;
     this.logger.log(`Processing job ${job.id}`);
 
@@ -117,6 +119,7 @@ export class FlowProcessor {
             scriptId,
             transitionDuration: 1,
             scripts: providedScripts,
+            voice,
           },
           userId,
         );

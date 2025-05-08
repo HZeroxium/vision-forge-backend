@@ -23,6 +23,7 @@ export interface CreateScriptResponse {
 
 export interface CreateImageRequest {
   prompt: string;
+  style: string;
 }
 
 export interface CreateImageResponse {
@@ -54,6 +55,7 @@ export interface CreateVideoRequest {
   audio_url: string;
   title?: string;
   transition_duration?: number;
+  voice?: string
 }
 
 export interface CreateVideoResponse {

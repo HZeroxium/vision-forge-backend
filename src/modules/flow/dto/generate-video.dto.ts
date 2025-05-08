@@ -1,5 +1,5 @@
 // modules/flow/dto/generate-video-flow.dto.ts
-import { IsString, IsNotEmpty, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsArray, IsOptional } from 'class-validator';
 
 /**
  * DTO for orchestrating the complete video generation flow.
@@ -18,4 +18,8 @@ export class GenerateVideoFlowDto {
   @IsArray()
   @IsNotEmpty()
   scripts: string[];
+
+  @IsOptional()
+  @IsString()
+  voice: string;
 }

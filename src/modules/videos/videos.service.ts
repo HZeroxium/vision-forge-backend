@@ -65,8 +65,14 @@ export class VideosService {
     createVideoDto: CreateVideoDto,
     userId: string,
   ): Promise<VideoResponseDto> {
-    const { imageUrls, audioUrl, transitionDuration, scriptId, scripts } =
-      createVideoDto;
+    const {
+      imageUrls,
+      audioUrl,
+      transitionDuration,
+      scriptId,
+      scripts,
+      voice,
+    } = createVideoDto;
     if (!imageUrls || imageUrls.length === 0 || !audioUrl || !scriptId) {
       throw new BadRequestException('Image URLs and audio URL are required.');
     }
@@ -82,6 +88,7 @@ export class VideosService {
         audio_url: audioUrl,
         transition_duration: transitionDuration,
         scripts,
+        voice,
       });
     } catch (error) {
       throw new HttpException(

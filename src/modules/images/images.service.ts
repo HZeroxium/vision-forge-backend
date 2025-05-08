@@ -87,8 +87,30 @@ export class ImagesService {
     } else {
       // Call AIService to generate the image from prompt
       try {
-        const generatedImage = await this.aiService.createImage({ prompt });
+        const generatedImage = await this.aiService.createImage({
+          prompt,
+          style,
+        });
         imageUrl = generatedImage.image_url;
+
+        // Check if the generated URL is the placeholder image
+        if (
+          imageUrl ===
+          'https://png.pngtree.com/png-vector/20190223/ourmid/pngtree-vector-picture-icon-png-image_695350.jpg'
+        ) {
+          this.logger.log(
+            'Placeholder image detected, skipping database storage',
+          );
+          // Return a response without saving to database
+          return {
+            id: 'placeholder-' + Date.now(),
+            prompt,
+            style,
+            url: imageUrl,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+        }
 
         // Check if an image with the same prompt and URL already exists
         const existingImage = await this.prisma.image.findFirst({
